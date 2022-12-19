@@ -1,0 +1,13 @@
+{
+  "name": "compare-zips",
+  "version": "0.0.0",
+  "description": "CompareZips",
+  "main": "server.js",
+  "author": {
+    "name": ""
+  },
+  "dependencies": {
+    "fflate": "^0.7.4",
+    "jszip": "^3.10.1"
+  }
+}

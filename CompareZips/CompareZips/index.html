@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+
+    <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+</head>
+<body>
+
+    <div>TEST ZIP performance</div>
+
+    <script type="module">
+
+        import * as fflate from "./node_modules/fflate/esm/browser.js";
+
+
+        let tm_start_jszip = new Date().getTime();
+        fetch("./data/dress.zip")
+            .then(res => {
+                return res.arrayBuffer();
+            }).then(ab => {
+                console.log("buf len " + ab.byteLength);
+                let buf = new Uint8Array(ab);
+
+                let z = new JSZip();
+                z.loadAsync(buf).then(zip => {
+                    return zip.file("dress.png").async("uint8array");
+                }).then(buf => {
+                    let tm_decompress_jszip = new Date().getTime() - tm_start_jszip;
+                    console.log("JSZip decompress time " + tm_decompress_jszip);
+                    console.log("JSZip uncompressed buf size " + buf.length);
+                });
+            });
+
+        let tm_start_fflate = new Date().getTime();
+        fetch("./data/dress.zip")
+            .then(res => {
+                return res.arrayBuffer();
+            }).then(ab => {
+                console.log("buf len " + ab.byteLength);
+                let buf = new Uint8Array(ab);
+
+                let unzipper = new fflate.Unzip();
+                unzipper.register(fflate.UnzipInflate);
+
+                unzipper.onfile = file => {
+                    if (file.name === "dress.png") {
+                        file.ondata = (err, dat, final) => {
+                            let tm_decompress_fflate = new Date().getTime() - tm_start_fflate;
+                            console.log("fflate decompress time " + tm_decompress_fflate);
+                            console.log("fflate uncompressed buf size " + dat.length);
+                        }
+
+                        file.start();
+                    }
+                }
+
+                unzipper.push(buf);
+
+                /*
+                let zipped = fflate.zipSync({
+                    'dress.png': buf
+                });
+                var blob = new Blob([zipped], { type: 'application/octet-stream;charset=utf-8' }),
+                    anchor = document.createElement('a');
+                anchor.download = "dress.zip";
+                anchor.href = (window.webkitURL || window.URL).createObjectURL(blob);
+                anchor.dataset.downloadurl = ['application/octet-stream', anchor.download, anchor.href].join(':');
+                anchor.click();
+                */
+
+
+
+            });
+
+
+
+    </script>
+
+
+</body>
+</html>
