@@ -6,74 +6,143 @@
     <title></title>
 
     <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+
+    <style>
+        button {
+            float: left;
+        }
+        .blk {
+            width: 100%;
+            height: 32px;
+        }
+        .result {
+            float: left;
+        }
+    </style>
 </head>
 <body>
 
     <div>TEST ZIP performance</div>
+    <hr />
+    <hr />
+    <div class="blk">
+        <button id="test_jszip_1">JSZip #1</button><div class="result">&nbsp;&nbsp;</div><div class="result" id="result_jszip_1">...</div>
+    </div>
+    <div class="blk">
+        <button id="test_fflate_1">FFlate #1</button><div class="result">&nbsp;&nbsp;</div><div class="result" id="result_fflate_1">...</div>
+    </div>
+    <div class="blk">
+        <button id="test_jszip_2">JSZip #2</button><div class="result">&nbsp;&nbsp;</div><div class="result" id="result_jszip_2">...</div>
+    </div>
+    <div class="blk">
+        <button id="test_fflate_2">FFlate #2</button><div class="result">&nbsp;&nbsp;</div><div class="result" id="result_fflate_2">...</div>
+    </div>
 
     <script type="module">
 
         import * as fflate from "./node_modules/fflate/esm/browser.js";
 
 
-        let tm_start_jszip = new Date().getTime();
-        fetch("./data/dress.zip")
-            .then(res => {
-                return res.arrayBuffer();
-            }).then(ab => {
-                console.log("buf len " + ab.byteLength);
-                let buf = new Uint8Array(ab);
+        // jszip test func
+        let jszip_test = function (zip_path, e_result) {
 
-                let z = new JSZip();
-                z.loadAsync(buf).then(zip => {
-                    return zip.file("dress.png").async("uint8array");
-                }).then(buf => {
-                    let tm_decompress_jszip = new Date().getTime() - tm_start_jszip;
-                    console.log("JSZip decompress time " + tm_decompress_jszip);
-                    console.log("JSZip uncompressed buf size " + buf.length);
+            fetch(zip_path)     // "./data/dress.zip"
+                .then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    //console.log("buf len " + ab.byteLength);
+                    let buf = new Uint8Array(ab);
+                    let z = new JSZip();
+                    let tm_start_jszip = 0;
+                    z.loadAsync(buf).then(zip => {
+                        tm_start_jszip = new Date().getTime();
+                        let paths = [];
+                        zip.forEach((relativePath, file) => {
+                            paths.push(relativePath);
+                        });
+                        return zip.file(paths[0]).async("uint8array");
+                    }).then(buf => {
+                        let tm_decompress_jszip = new Date().getTime() - tm_start_jszip;
+                        //console.log("JSZip decompress time " + tm_decompress_jszip);
+                        //console.log("JSZip uncompressed buf size " + buf.length);
+                        e_result.innerText = "decompress time : " + tm_decompress_jszip + "ms / buf size = " + buf.length;
+                    });
                 });
-            });
+        }
 
-        let tm_start_fflate = new Date().getTime();
-        fetch("./data/dress.zip")
-            .then(res => {
-                return res.arrayBuffer();
-            }).then(ab => {
-                console.log("buf len " + ab.byteLength);
-                let buf = new Uint8Array(ab);
+        // fflate test func
+        let fflate_test = function (zip_path, e_result) {
 
-                let unzipper = new fflate.Unzip();
-                unzipper.register(fflate.UnzipInflate);
+            fetch(zip_path)
+                .then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    console.log("buf len " + ab.byteLength);
+                    let buf = new Uint8Array(ab);
 
-                unzipper.onfile = file => {
-                    if (file.name === "dress.png") {
-                        file.ondata = (err, dat, final) => {
-                            let tm_decompress_fflate = new Date().getTime() - tm_start_fflate;
-                            console.log("fflate decompress time " + tm_decompress_fflate);
-                            console.log("fflate uncompressed buf size " + dat.length);
+                    let unzipper = new fflate.Unzip();
+                    unzipper.register(fflate.UnzipInflate);
+
+                    let first = true;
+
+                    unzipper.onfile = file => {
+                        if (first) {
+
+                            first = false;
+
+                            let tm_start_fflate = 0;
+                            //console.log("fflate start time " + tm_start_fflate);
+                            file.ondata = (err, dat, final) => {
+                                let tm_end_fflate = new Date().getTime();
+                                //console.log("fflate end time " + tm_end_fflate);
+                                let tm_decompress_fflate = tm_end_fflate - tm_start_fflate;
+                                //console.log("fflate decompress time " + tm_decompress_fflate);
+                                //console.log("fflate uncompressed buf size " + dat.length);
+                                e_result.innerText = "decompress time : " + tm_decompress_fflate + "ms / buf size = " + dat.length;
+                            }
+
+                            tm_start_fflate = new Date().getTime();
+                            file.start();
                         }
-
-                        file.start();
                     }
-                }
 
-                unzipper.push(buf);
+                    unzipper.push(buf);
 
-                /*
-                let zipped = fflate.zipSync({
-                    'dress.png': buf
+                    /*
+                    let zipped = fflate.zipSync({
+                        'dress.png': buf
+                    });
+                    var blob = new Blob([zipped], { type: 'application/octet-stream;charset=utf-8' }),
+                        anchor = document.createElement('a');
+                    anchor.download = "dress.zip";
+                    anchor.href = (window.webkitURL || window.URL).createObjectURL(blob);
+                    anchor.dataset.downloadurl = ['application/octet-stream', anchor.download, anchor.href].join(':');
+                    anchor.click();
+                    */
+
                 });
-                var blob = new Blob([zipped], { type: 'application/octet-stream;charset=utf-8' }),
-                    anchor = document.createElement('a');
-                anchor.download = "dress.zip";
-                anchor.href = (window.webkitURL || window.URL).createObjectURL(blob);
-                anchor.dataset.downloadurl = ['application/octet-stream', anchor.download, anchor.href].join(':');
-                anchor.click();
-                */
+        }
 
 
+        // test jszip 1 button event
+        document.getElementById("test_jszip_1").addEventListener("click", (event) => {
+            jszip_test("./data/dress.zip", document.getElementById("result_jszip_1"));
+        });
 
-            });
+        // test fflate 1 button event
+        document.getElementById("test_fflate_1").addEventListener("click", (event) => {
+            fflate_test("./data/dress.zip", document.getElementById("result_fflate_1"));
+        });
+
+        // test jszip 2 button event
+        document.getElementById("test_jszip_2").addEventListener("click", (event) => {
+            jszip_test("./data/1w5e.zip", document.getElementById("result_jszip_2"));
+        });
+
+        // test fflate 2 button event
+        document.getElementById("test_fflate_2").addEventListener("click", (event) => {
+            fflate_test("./data/1w5e.zip", document.getElementById("result_fflate_2"));
+        });
 
 
 
