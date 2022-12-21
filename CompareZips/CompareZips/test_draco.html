@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+
+    <script type="text/javascript" src="./draco_js/draco_decoder.js"></script>
+</head>
+<body>
+
+    <script type="module">
+
+
+        let byteArray = null;
+
+        fetch("./data/bunny.drc").then(res => {
+
+
+            return res.arrayBuffer();
+
+        }).then(ab => {
+
+            byteArray = new Uint8Array(ab);
+            console.log("fetch data bytes " + byteArray.length);
+            return DracoDecoderModule();
+
+        }).then(decoderModule => {
+
+            const buffer = new decoderModule.DecoderBuffer();
+            buffer.Init(byteArray, byteArray.length);
+
+            // Create a buffer to hold the encoded data.
+            const decoder = new decoderModule.Decoder();
+            const geometryType = decoder.GetEncodedGeometryType(buffer);
+
+            // Decode the encoded geometry.
+            let outputGeometry;
+            let status;
+            if (geometryType == decoderModule.TRIANGULAR_MESH) {
+                outputGeometry = new decoderModule.Mesh();
+                status = decoder.DecodeBufferToMesh(buffer, outputGeometry);
+                console.log("decoded mesh geometry data with " + outputGeometry.num_points() + " vertices and " + outputGeometry.num_faces() + " faces.");
+            } else {
+                outputGeometry = new decoderModule.PointCloud();
+                status = decoder.DecodeBufferToPointCloud(buffer, outputGeometry);
+                console.log("decoded pointcloud geometry data with " + outputGeometry.num_points() + " points");
+            }
+
+            // You must explicitly delete objects created from the DracoDecoderModule
+            // or Decoder.
+            decoderModule.destroy(outputGeometry);
+            decoderModule.destroy(decoder);
+            decoderModule.destroy(buffer);
+
+        });
+
+
+
+    </script>
+
+
+</body>
+</html>
