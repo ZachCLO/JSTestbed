@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>DRACO Loader Test THREE</title>
+</head>
+<body>
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "./node_modules/three/build/three.module.js"
+          }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { DRACOLoader } from './node_modules/three/examples/jsm/loaders/DRACOLoader.js';
+        import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize(1024, 768);
+        renderer.setClearColor(0x000000, 1);
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(-10, -10, 10);
+        directionalLight.lookAt(0, 0, 0);
+        scene.add(directionalLight);
+
+        /*
+        const geometry = new THREE.BoxGeometry(10, 10, 10);
+        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(0, 0, 0);
+        scene.add(cube);
+        */
+
+        const camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 0.01, 10);
+        camera.position.set(1, 1, 1);
+
+        const cameraLight = new THREE.PointLight(0xffcccc, 1);
+        camera.add(cameraLight);
+        
+        scene.add(camera);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        animate();
+
+        // load THREE.DracoLoader load mesh
+        
+        const loader = new DRACOLoader();
+
+        loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+        loader.preload();
+        loader.load(
+            './data/bunny.drc',
+            function (geom) {
+                const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                const mesh = new THREE.Mesh(geom, mat);
+                geom.computeVertexNormals();
+                scene.add(mesh);
+            },
+            function (xhr) {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            },
+            function (err) {
+                console.log('DracoLoader error' + err);
+            }
+        );
+        
+
+
+    </script>
+
+
+</body>
+</html>
