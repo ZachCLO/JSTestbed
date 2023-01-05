@@ -40,7 +40,12 @@
             if (geometryType == decoderModule.TRIANGULAR_MESH) {
                 outputGeometry = new decoderModule.Mesh();
                 status = decoder.DecodeBufferToMesh(buffer, outputGeometry);
+                let attrs = outputGeometry.num_attributes();
                 console.log("decoded mesh geometry data with " + outputGeometry.num_points() + " vertices and " + outputGeometry.num_faces() + " faces.");
+
+
+
+
             } else {
                 outputGeometry = new decoderModule.PointCloud();
                 status = decoder.DecodeBufferToPointCloud(buffer, outputGeometry);

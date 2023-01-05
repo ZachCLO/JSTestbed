@@ -47,8 +47,8 @@
         scene.add(cube);
         */
 
-        const camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 0.01, 10);
-        camera.position.set(1, 1, 1);
+        const camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 10, 5000);
+        camera.position.set(1000, 1000, 1000);
 
         const cameraLight = new THREE.PointLight(0xffcccc, 1);
         camera.add(cameraLight);
@@ -68,6 +68,28 @@
             render();
         }
 
+        function setCameraFit(mesh) {
+
+            let bbox = new THREE.Box3();
+            bbox.expandByObject(mesh);
+
+            console.log("mesh bbox " + bbox.min.x + "," + bbox.min.y + "," + bbox.min.z + " - " + bbox.max.x + "," + bbox.max.y + "," + bbox.max.z)
+
+            let sz = new THREE.Vector3();
+            bbox.getSize(sz);
+
+            let as = Math.max(sz.x, sz.y);
+            let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
+
+            console.log("camera dist fit = " + dist);
+
+            let ctr = new THREE.Vector3();
+            bbox.getCenter(ctr);
+            camera.target.set(ctr.x, ctr.y, ctr.z);
+            camera.position.set(ctr.x, ctr.y, ctr.z - dist);
+
+        }
+
         animate();
 
         // load THREE.DracoLoader load mesh
@@ -77,12 +99,14 @@
         loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
         loader.preload();
         loader.load(
-            './data/bunny.drc',
+            //'./data/bunny.drc',
+            '../../data/306.drc',
             function (geom) {
                 const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
                 const mesh = new THREE.Mesh(geom, mat);
                 geom.computeVertexNormals();
                 scene.add(mesh);
+                setCameraFit(mesh);
             },
             function (xhr) {
                 console.log((xhr.loaded / xhr.total * 100) + '% loaded');
