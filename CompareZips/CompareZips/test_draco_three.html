@@ -4,8 +4,27 @@
 <head>
     <meta charset="utf-8" />
     <title>DRACO Loader Test THREE</title>
+    <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+    <style>
+        .dataRow {
+            width: 380px;
+            height: 24px;
+            padding: 4px;
+            font-size: 14px;
+            float: left;
+        }
+        .rowOdd {
+            background-color: antiquewhite;
+        }
+        .rowEven {
+            background-color: aliceblue;
+        }
+    </style>
 </head>
 <body>
+
+    <div id="three_render" style="width:600px;height:600px;float:left;"></div>
+    <div id="data_table" style="width:420px;height:600px;float:left;overflow:auto;"></div>
 
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -21,13 +40,17 @@
         import * as THREE from 'three';
         import { DRACOLoader } from './node_modules/three/examples/jsm/loaders/DRACOLoader.js';
         import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
-
+        import * as fflate from "./node_modules/fflate/esm/browser.js";
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
 		renderer.setPixelRatio( window.devicePixelRatio );
-        renderer.setSize(1024, 768);
+        renderer.setSize(600, 600);
         renderer.setClearColor(0x000000, 1);
-        document.body.appendChild(renderer.domElement);
+
+        document.getElementById("three_render").appendChild(renderer.domElement);
+
+        const dataTableRoot = document.getElementById("data_table");
+        let row_index = 0;
 
         const scene = new THREE.Scene();
 
@@ -59,6 +82,11 @@
         controls.target.set(0, 0, 0);
         controls.update();
 
+
+        const root = new THREE.Group();
+        scene.add(root);
+
+
         function render() {
             renderer.render(scene, camera);
         }
@@ -68,12 +96,12 @@
             render();
         }
 
-        function setCameraFit(mesh) {
+        function setCameraFit(obj) {
 
             let bbox = new THREE.Box3();
-            bbox.expandByObject(mesh);
+            bbox.expandByObject(obj);
 
-            console.log("mesh bbox " + bbox.min.x + "," + bbox.min.y + "," + bbox.min.z + " - " + bbox.max.x + "," + bbox.max.y + "," + bbox.max.z)
+            //console.log("obj bbox " + bbox.min.x + "," + bbox.min.y + "," + bbox.min.z + " - " + bbox.max.x + "," + bbox.max.y + "," + bbox.max.z)
 
             let sz = new THREE.Vector3();
             bbox.getSize(sz);
@@ -81,14 +109,38 @@
             let as = Math.max(sz.x, sz.y);
             let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
 
-            console.log("camera dist fit = " + dist);
+            //console.log("camera dist fit = " + dist);
 
             let ctr = new THREE.Vector3();
             bbox.getCenter(ctr);
-            camera.target.set(ctr.x, ctr.y, ctr.z);
+
+            controls.target.set(ctr.x, ctr.y, ctr.z);
+            controls.update();
+
             camera.position.set(ctr.x, ctr.y, ctr.z - dist);
+            camera.lookAt(ctr.x, ctr.y, ctr.z);
 
         }
+
+        function addDataRow(text) {
+            let dr = document.createElement("div");
+            dr.classList.add("dataRow");
+            if (row_index % 2 === 0)
+                dr.classList.add("rowEven");
+            else
+                dr.classList.add("rowOdd");
+            dr.innerText = text;
+            dataTableRoot.appendChild(dr);
+            row_index++;
+
+            dataTableRoot.scrollTop = dataTableRoot.scrollHeight;
+        }
+
+        function addDataAnalysis(index, sizeCompressed, sizeDecompressed, compressPct, sizeGzip, GzipCompressPct) {
+            let text = "DRC[" + index + "] " + sizeCompressed + " => " + sizeDecompressed + " (" + compressPct.toFixed(0) + "%) => " + sizeGzip + " (" + GzipCompressPct.toFixed(0) + "%)";
+            addDataRow(text);
+        }
+
 
         animate();
 
@@ -98,25 +150,144 @@
 
         loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
         loader.preload();
-        loader.load(
-            //'./data/bunny.drc',
-            '../../data/306.drc',
-            function (geom) {
-                const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
-                const mesh = new THREE.Mesh(geom, mat);
-                geom.computeVertexNormals();
-                scene.add(mesh);
-                setCameraFit(mesh);
-            },
-            function (xhr) {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-            },
-            function (err) {
-                console.log('DracoLoader error' + err);
-            }
-        );
-        
 
+        let sumCompressPct = 0;
+        let sumGzCompressPct = 0;
+
+        fetch('../../data/sample_zpac_zrest.json').then(res => {
+            return res.json();
+        }).then(json => {
+            console.log("zrest dracos = " + json.dracos.length);
+
+            let results = [];
+            for (let idx = 0; idx < json.dracos.length; idx++) {
+
+                let tm_start_jszip = 0;
+                let tm_end_jszip = 0;
+                let tm_dur_unzip = 0;
+                let sizeZip = 0;
+                let sizeDrc = 0;
+                let zipCompressPct = 0;
+                let sizeGzip = 0;
+                let GzipCompressPct = 0;
+
+                let res = fetch(json.dracos[idx]).then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    //console.log("buf len " + ab.byteLength);
+                    sizeZip = ab.byteLength;
+                    let buf = new Uint8Array(ab);
+                    let z = new JSZip();
+                    return z.loadAsync(buf);
+                }).then(zip => {
+                    tm_start_jszip = new Date().getTime();
+                    let paths = [];
+                    zip.forEach((relativePath, file) => {
+                        paths.push(relativePath);
+                    });
+                    return zip.file(paths[0]).async("uint8array");
+                }).then(buf => {
+                    tm_end_jszip = new Date().getTime();
+                    tm_dur_unzip = tm_end_jszip - tm_start_jszip;
+                    sizeDrc = buf.length;
+                    zipCompressPct = sizeZip / sizeDrc * 100.0;
+
+                    const gzip_buf = fflate.compressSync(buf);
+                    sizeGzip = gzip_buf.length;
+                    GzipCompressPct = sizeGzip / sizeDrc * 100.0;
+
+
+                    let blob = new Blob([buf]);
+                    let drcUrl = URL.createObjectURL(blob);
+
+                    return new Promise((resolve, reject) => {
+
+                        loader.load(
+                            //'./data/bunny.drc',
+                            //'../../data/307.drc',
+                            drcUrl,
+                            function (geom) {
+
+                                addDataAnalysis(idx, sizeZip, sizeDrc, zipCompressPct, sizeGzip, GzipCompressPct);
+
+                                const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                                if (idx === 18)
+                                    mat.color = new THREE.Color(1, 0, 0);
+                                let mesh = new THREE.Mesh(geom, mat);
+                                mesh._index = idx;
+
+                                geom.computeVertexNormals();
+                                root.add(mesh);
+                                setCameraFit(root);
+
+                                console.log("resolve drc " + idx);
+                                resolve([zipCompressPct, GzipCompressPct]);
+                            },
+                            function (xhr) {
+                                //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                            },
+                            function (err) {
+                                console.log('DracoLoader error' + err);
+                                reject("DracoLoader error " + err);
+                            }
+                        );
+
+                    });
+
+                }).then(pct => {
+                    sumCompressPct += pct[0];
+                    sumGzCompressPct += pct[1];
+                });
+
+                results.push(res);
+            }
+
+            Promise.all(results).then(res => {
+                console.log("all draco passed " + res.length);
+                let avgCompressPct = sumCompressPct / res.length;
+                addDataRow("ZIP Average CompressPct = " + avgCompressPct.toFixed(1));
+                let avgGzCompressPct = sumGzCompressPct / res.length;
+                addDataRow("GZIP Average CompressPct = " + avgGzCompressPct.toFixed(1));
+            });
+
+        });
+
+        function screenToNormalized(px, py) {
+
+            //rayLog(3, "mouse px : " + px + "," + py);
+
+            var cx = (px / renderer.domElement.clientWidth) * 2.0 - 1.0;
+            var cy = (1.0 - py / renderer.domElement.clientHeight) * 2.0 - 1.0;
+            //rayLog(3, "normalized (-1,1) coord : " + cx + "," + cy);
+
+            var nc = new THREE.Vector2(cx, cy);
+            return nc;
+        }
+
+
+        const raycaster = new THREE.Raycaster();
+
+        renderer.domElement.addEventListener('pointerup', (event) => {
+
+            let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+
+            raycaster.setFromCamera(normalizedPosition, camera);
+            let intersectedObjects = raycaster.intersectObjects(root.children, true);
+
+            if (intersectedObjects && intersectedObjects.length > 0) {
+
+                let pick_mesh = intersectedObjects[0].object;
+                if (pick_mesh) {
+                    console.log("pick mesh index " + pick_mesh._index);
+                    //pick_mesh.material.color = new THREE.Color(1, 0, 0);
+                }
+                
+
+
+            }
+
+
+        });
 
     </script>
 
