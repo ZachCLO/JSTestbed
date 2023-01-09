@@ -25,6 +25,9 @@
 
     <div id="three_render" style="width:600px;height:600px;float:left;"></div>
     <div id="data_table" style="width:420px;height:600px;float:left;overflow:auto;"></div>
+    <button id="start_zrest">Load from ZRest</button>
+    <button id="start_zip">Load from Zip</button>
+    <button id="start_drc">Load from Drc</button>
 
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -43,7 +46,7 @@
         import * as fflate from "./node_modules/fflate/esm/browser.js";
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
-		renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(600, 600);
         renderer.setClearColor(0x000000, 1);
 
@@ -75,7 +78,7 @@
 
         const cameraLight = new THREE.PointLight(0xffcccc, 1);
         camera.add(cameraLight);
-        
+
         scene.add(camera);
 
         const controls = new OrbitControls(camera, renderer.domElement);
@@ -141,117 +144,6 @@
             addDataRow(text);
         }
 
-
-        animate();
-
-        // load THREE.DracoLoader load mesh
-        
-        const loader = new DRACOLoader();
-
-        loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
-        loader.preload();
-
-        let sumCompressPct = 0;
-        let sumGzCompressPct = 0;
-
-        fetch('../../data/sample_zpac_zrest.json').then(res => {
-            return res.json();
-        }).then(json => {
-            console.log("zrest dracos = " + json.dracos.length);
-
-            let results = [];
-            for (let idx = 0; idx < json.dracos.length; idx++) {
-
-                let tm_start_jszip = 0;
-                let tm_end_jszip = 0;
-                let tm_dur_unzip = 0;
-                let sizeZip = 0;
-                let sizeDrc = 0;
-                let zipCompressPct = 0;
-                let sizeGzip = 0;
-                let GzipCompressPct = 0;
-
-                let res = fetch(json.dracos[idx]).then(res => {
-                    return res.arrayBuffer();
-                }).then(ab => {
-                    //console.log("buf len " + ab.byteLength);
-                    sizeZip = ab.byteLength;
-                    let buf = new Uint8Array(ab);
-                    let z = new JSZip();
-                    return z.loadAsync(buf);
-                }).then(zip => {
-                    tm_start_jszip = new Date().getTime();
-                    let paths = [];
-                    zip.forEach((relativePath, file) => {
-                        paths.push(relativePath);
-                    });
-                    return zip.file(paths[0]).async("uint8array");
-                }).then(buf => {
-                    tm_end_jszip = new Date().getTime();
-                    tm_dur_unzip = tm_end_jszip - tm_start_jszip;
-                    sizeDrc = buf.length;
-                    zipCompressPct = sizeZip / sizeDrc * 100.0;
-
-                    const gzip_buf = fflate.compressSync(buf);
-                    sizeGzip = gzip_buf.length;
-                    GzipCompressPct = sizeGzip / sizeDrc * 100.0;
-
-
-                    let blob = new Blob([buf]);
-                    let drcUrl = URL.createObjectURL(blob);
-
-                    return new Promise((resolve, reject) => {
-
-                        loader.load(
-                            //'./data/bunny.drc',
-                            //'../../data/307.drc',
-                            drcUrl,
-                            function (geom) {
-
-                                addDataAnalysis(idx, sizeZip, sizeDrc, zipCompressPct, sizeGzip, GzipCompressPct);
-
-                                const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
-                                if (idx === 18)
-                                    mat.color = new THREE.Color(1, 0, 0);
-                                let mesh = new THREE.Mesh(geom, mat);
-                                mesh._index = idx;
-
-                                geom.computeVertexNormals();
-                                root.add(mesh);
-                                setCameraFit(root);
-
-                                console.log("resolve drc " + idx);
-                                resolve([zipCompressPct, GzipCompressPct]);
-                            },
-                            function (xhr) {
-                                //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-                            },
-                            function (err) {
-                                console.log('DracoLoader error' + err);
-                                reject("DracoLoader error " + err);
-                            }
-                        );
-
-                    });
-
-                }).then(pct => {
-                    sumCompressPct += pct[0];
-                    sumGzCompressPct += pct[1];
-                });
-
-                results.push(res);
-            }
-
-            Promise.all(results).then(res => {
-                console.log("all draco passed " + res.length);
-                let avgCompressPct = sumCompressPct / res.length;
-                addDataRow("ZIP Average CompressPct = " + avgCompressPct.toFixed(1));
-                let avgGzCompressPct = sumGzCompressPct / res.length;
-                addDataRow("GZIP Average CompressPct = " + avgGzCompressPct.toFixed(1));
-            });
-
-        });
-
         function screenToNormalized(px, py) {
 
             //rayLog(3, "mouse px : " + px + "," + py);
@@ -263,6 +155,245 @@
             var nc = new THREE.Vector2(cx, cy);
             return nc;
         }
+
+
+        animate();
+
+        // load THREE.DracoLoader load mesh
+
+        function startBenchmarkZrest() {
+
+            const loader = new DRACOLoader();
+
+            loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+            loader.preload();
+
+            let sumCompressPct = 0;
+            let sumGzCompressPct = 0;
+
+            fetch('../../data/sample_zpac_zrest.json').then(res => {
+                return res.json();
+            }).then(json => {
+                console.log("zrest dracos = " + json.dracos.length);
+
+                let results = [];
+                for (let idx = 0; idx < json.dracos.length; idx++) {
+
+                    let tm_start_jszip = 0;
+                    let tm_end_jszip = 0;
+                    let tm_dur_unzip = 0;
+                    let sizeZip = 0;
+                    let sizeDrc = 0;
+                    let zipCompressPct = 0;
+                    let sizeGzip = 0;
+                    let GzipCompressPct = 0;
+
+                    let res = fetch(json.dracos[idx]).then(res => {
+                        return res.arrayBuffer();
+                    }).then(ab => {
+                        //console.log("buf len " + ab.byteLength);
+                        sizeZip = ab.byteLength;
+                        let buf = new Uint8Array(ab);
+                        let z = new JSZip();
+                        return z.loadAsync(buf);
+                    }).then(zip => {
+                        tm_start_jszip = new Date().getTime();
+                        let paths = [];
+                        zip.forEach((relativePath, file) => {
+                            paths.push(relativePath);
+                        });
+                        return zip.file(paths[0]).async("uint8array");
+                    }).then(buf => {
+                        tm_end_jszip = new Date().getTime();
+                        tm_dur_unzip = tm_end_jszip - tm_start_jszip;
+                        sizeDrc = buf.length;
+                        zipCompressPct = sizeZip / sizeDrc * 100.0;
+
+                        //const gzip_buf = fflate.compressSync(buf);
+                        //sizeGzip = gzip_buf.length;
+                        //GzipCompressPct = sizeGzip / sizeDrc * 100.0;
+
+
+                        let blob = new Blob([buf]);
+                        let drcUrl = URL.createObjectURL(blob);
+
+                        return new Promise((resolve, reject) => {
+
+                            loader.load(
+                                //'./data/bunny.drc',
+                                //'../../data/307.drc',
+                                drcUrl,
+                                function (geom) {
+
+                                    addDataAnalysis(idx, sizeZip, sizeDrc, zipCompressPct, sizeGzip, GzipCompressPct);
+
+                                    const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                                    if (idx === 18)
+                                        mat.color = new THREE.Color(1, 0, 0);
+                                    let mesh = new THREE.Mesh(geom, mat);
+                                    mesh._index = idx;
+
+                                    geom.computeVertexNormals();
+                                    root.add(mesh);
+                                    setCameraFit(root);
+
+                                    console.log("resolve drc " + idx);
+                                    resolve([zipCompressPct, GzipCompressPct]);
+                                },
+                                function (xhr) {
+                                    //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                                },
+                                function (err) {
+                                    console.log('DracoLoader error' + err);
+                                    reject("DracoLoader error " + err);
+                                }
+                            );
+
+                        });
+
+                    }).then(pct => {
+                        sumCompressPct += pct[0];
+                        sumGzCompressPct += pct[1];
+                    });
+
+                    results.push(res);
+                }
+
+                Promise.all(results).then(res => {
+                    console.log("all draco passed " + res.length);
+                    let avgCompressPct = sumCompressPct / res.length;
+                    addDataRow("ZIP Average CompressPct = " + avgCompressPct.toFixed(1));
+                    let avgGzCompressPct = sumGzCompressPct / res.length;
+                    addDataRow("GZIP Average CompressPct = " + avgGzCompressPct.toFixed(1));
+                });
+
+            });
+
+
+
+        }
+
+
+        document.getElementById("start_zrest").addEventListener("click", (event) => {
+            startBenchmarkZrest();
+        });
+
+
+        function startBenchmarkZip() {
+
+            const loader = new DRACOLoader();
+
+            loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+            loader.preload();
+
+            for (let idx = 0; idx < 308; idx++) {
+
+                let res = fetch("../../data/" + idx + ".drc.zip").then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    let buf = new Uint8Array(ab);
+                    let z = new JSZip();
+                    return z.loadAsync(buf);
+                }).then(zip => {
+                    let paths = [];
+                    zip.forEach((relativePath, file) => {
+                        paths.push(relativePath);
+                    });
+                    return zip.file(paths[0]).async("uint8array");
+                }).then(buf => {
+
+                    let blob = new Blob([buf]);
+                    let drcUrl = URL.createObjectURL(blob);
+
+                    loader.load(
+                        //'./data/bunny.drc',
+                        //'../../data/307.drc',
+                        drcUrl,
+                        function (geom) {
+
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                            if (idx === 18)
+                                mat.color = new THREE.Color(1, 0, 0);
+                            let mesh = new THREE.Mesh(geom, mat);
+                            mesh._index = idx;
+
+                            geom.computeVertexNormals();
+                            root.add(mesh);
+                            setCameraFit(root);
+
+                            console.log("resolve drc " + idx);
+                        },
+                        function (xhr) {
+                            //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                        },
+                        function (err) {
+                            console.log('DracoLoader error' + err);
+                        }
+                    );
+                });
+
+            }
+
+        }
+
+
+        document.getElementById("start_zip").addEventListener("click", (event) => {
+            startBenchmarkZip();
+        });
+
+
+        function startBenchmarkDrc() {
+
+            const loader = new DRACOLoader();
+
+            loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+            loader.preload();
+
+            for (let idx = 0; idx < 308; idx++) {
+
+                let res = fetch("../../data/" + idx + ".drc").then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    let buf = new Uint8Array(ab);
+
+                    let blob = new Blob([buf]);
+                    let drcUrl = URL.createObjectURL(blob);
+
+                    loader.load(
+                        //'./data/bunny.drc',
+                        //'../../data/307.drc',
+                        drcUrl,
+                        function (geom) {
+
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                            if (idx === 18)
+                                mat.color = new THREE.Color(1, 0, 0);
+                            let mesh = new THREE.Mesh(geom, mat);
+                            mesh._index = idx;
+
+                            geom.computeVertexNormals();
+                            root.add(mesh);
+                            setCameraFit(root);
+
+                            console.log("resolve drc " + idx);
+                        },
+                        function (xhr) {
+                            //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                        },
+                        function (err) {
+                            console.log('DracoLoader error' + err);
+                        }
+                    );
+                });
+
+            }
+
+        }
+
+
+        document.getElementById("start_drc").addEventListener("click", (event) => {
+            startBenchmarkDrc();
+        });
 
 
         const raycaster = new THREE.Raycaster();
@@ -281,11 +412,8 @@
                     console.log("pick mesh index " + pick_mesh._index);
                     //pick_mesh.material.color = new THREE.Color(1, 0, 0);
                 }
-                
-
 
             }
-
 
         });
 
