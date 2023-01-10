@@ -46,6 +46,12 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="README.md" />
+    <Content Include="shader_three.html">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="shadow_three.html">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="test_draco.html">
       <SubType>Code</SubType>
     </Content>
