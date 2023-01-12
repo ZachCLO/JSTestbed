@@ -33,10 +33,25 @@
 		uniform float time;
 		uniform sampler2D sMainTex;
 		uniform sampler2D sGraphicTex;
+		uniform bool grp_selected;
 
 		void main()	{
-			float ga = texture2D( sGraphicTex, vUV2 ).a;
-			gl_FragColor = (1.0 - ga) * texture2D( sMainTex, vUV ) + ga * texture2D( sGraphicTex, vUV2);
+
+			int edg = 0;
+			if (grp_selected) {
+				if (((vUV2.x > 0.0 && vUV2.x < 0.02) || (vUV2.x > 0.98 && vUV2.x < 1.00)) && (vUV2.y > 0.0 && vUV2.y < 1.0))
+					edg++;
+				if (((vUV2.y > 0.0 && vUV2.y < 0.02) || (vUV2.y > 0.98 && vUV2.y < 1.00)) && (vUV2.x > 0.0 && vUV2.x < 1.0))
+					edg++;
+			}
+
+			if (edg > 0) {
+				gl_FragColor = vec4(1, 0, 0, 1);
+			} else {
+				float ga = texture2D( sGraphicTex, vUV2 ).a;
+				float gb = (grp_selected && (vUV2.x > 0.0 && vUV2.x < 1.0 && vUV2.y > 0.0 && vUV2.y < 1.0)) ? 0.7 : 1.0;
+				gl_FragColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
+			}
 		}
 
 	</script>
@@ -69,6 +84,21 @@
         let grp_lt = new THREE.Vector2(0.3, 0.2);
         let grp_w = 0.4;
         let grp_h = 0.72;
+
+        let lbDown = false;
+        let grDragStart = false;
+        let grPickUV = new THREE.Vector2(0, 0);
+        let grPickOffset = new THREE.Vector2(0, 0);
+
+        const raycaster = new THREE.Raycaster();
+
+
+		//let v1 = new THREE.Vector3(1, 0, 0);
+        //let v2 = new THREE.Vector3(0, 0, 1);
+        //let cp = v1.clone().normalize().cross(v2.clone().normalize());
+		//console.log(cp.y);
+
+
 
 
 		init();
@@ -127,7 +157,8 @@
                 grp_w: { value: grp_w },
                 grp_h: { value: grp_h },
 				sMainTex: { value: main_tex },
-                sGraphicTex: { value: gr_tex },
+				sGraphicTex: { value: gr_tex },
+                grp_selected: { value: false }
 			};
 
 			const material = new THREE.ShaderMaterial({
@@ -148,7 +179,7 @@
 			cameraControl = new OrbitControls(camera, renderer.domElement);
 			cameraControl.target.set(0, 0, 0);
 			cameraControl.update();
-			cameraControl.enabled = true;
+			cameraControl.enabled = false;
 
 			camera.position.set(0, 10, 10);
 			camera.lookAt(0, 0, 0);
@@ -158,27 +189,29 @@
 			window.addEventListener('resize', onWindowResize);
 
 
+            window.addEventListener('keydown', (event) => {
+
+                if (lbDown || grDragStart)
+                    return;
+
+                if (event.key === '1') {
+                    //console.log("camera control ON");
+                    cameraControl.enabled = true;
+                    container.style.cursor = cameraControl.enabled ? "auto" : "move";
+                }
+            });
+
 			window.addEventListener('keyup', (event) => {
 
 				if (lbDown || grDragStart)
 					return;
 
 				if (event.key === '1') {
-					console.log("toggle camera control");
-					cameraControl.enabled = !cameraControl.enabled;
+					//console.log("camera control OFF");
+					cameraControl.enabled = false;
 					container.style.cursor = cameraControl.enabled ? "auto" : "move";
 				}
 			});
-
-
-
-			let lbDown = false;
-			let grDragStart = false;
-			let grPickUV = new THREE.Vector2(0, 0);
-            let grPickOffset = new THREE.Vector2(0, 0);
-
-            const raycaster = new THREE.Raycaster();
-			
 
             container.addEventListener('pointerdown', (event) => {
 
@@ -280,6 +313,7 @@
 			//uniforms['time'].value = performance.now() / 1000;
             // update grp coordinates
             uniforms['grp_lt'].value.set(grp_lt.x, grp_lt.y);
+            uniforms['grp_selected'].value = grDragStart;
 
 			renderer.render(scene, camera);
 
