@@ -210,6 +210,8 @@
                     cameraControl.enabled = false;
                     drag_mode_rot = true;
                     container.style.cursor = "grab";
+				} if (event.key === 'w') {
+					material.wireframe = !material.wireframe;
                 }
 			});
 

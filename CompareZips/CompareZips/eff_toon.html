@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Toon Effect</title>
+    <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+</head>
+<body>
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+
+        varying float dotN;
+        varying vec4 vcolor;
+        varying vec2 vUV;
+        uniform vec3 cdir;
+
+        void main()	{
+            vUV = uv;
+            dotN = abs(dot(cdir, normal));
+            vcolor = vec4(normal.xyz, 1);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+
+        varying vec2 vUV;
+        varying vec4 vcolor;
+        varying float dotN;
+        uniform sampler2D sMainTex;
+
+        void main()	{
+
+            vec4 fColor = vec4(1, 1, 1, 1);
+            //fColor = vcolor;
+            fColor = vec4(1, 1, 1, 1);
+            if (dotN < 0.1) {
+                fColor = vec4(0, 0, 0, 1);
+            } else if (dotN < 0.5) {
+                fColor = vec4(0.5, 0.5, 0.5, 1);
+            } else if (dotN < 0.8) {
+                fColor = vec4(0.75, 0.75, 0.75, 1);
+            } else {
+                fColor = vec4(1, 1, 1, 1);
+            }
+
+            gl_FragColor = fColor * texture2D( sMainTex, vUV );
+        }
+
+    </script>
+
+
+    <div id="three_render" style="width:600px;height:600px;float:left;"></div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "./node_modules/three/build/three.module.js"
+          }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { DRACOLoader } from './node_modules/three/examples/jsm/loaders/DRACOLoader.js';
+        import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(600, 600);
+        renderer.setClearColor(0xaaaaaa, 1);
+
+        document.getElementById("three_render").appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(-10, -10, 10);
+        directionalLight.lookAt(0, 0, 0);
+        scene.add(directionalLight);
+
+        const camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 10, 5000);
+        camera.position.set(1000, 1000, 1000);
+
+        const cameraLight = new THREE.PointLight(0xffcccc, 1);
+        camera.add(cameraLight);
+
+        scene.add(camera);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        const root = new THREE.Group();
+        scene.add(root);
+
+
+        const main_tex = new THREE.TextureLoader().load('../../data/checked.jpg');
+
+        let uniforms = {
+            cdir: { value: new THREE.Vector3(1, 0, 0) },
+            sMainTex: { value: main_tex },
+        };
+
+        const toon_material = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+        });
+
+
+        function render() {
+            let cdir = new THREE.Vector3();
+            camera.getWorldDirection(cdir);
+            cdir.normalize();
+            uniforms["cdir"].value = cdir;
+            renderer.render(scene, camera);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        function setCameraFit(obj) {
+
+            let bbox = new THREE.Box3();
+            bbox.expandByObject(obj);
+
+            //console.log("obj bbox " + bbox.min.x + "," + bbox.min.y + "," + bbox.min.z + " - " + bbox.max.x + "," + bbox.max.y + "," + bbox.max.z)
+
+            let sz = new THREE.Vector3();
+            bbox.getSize(sz);
+
+            let as = Math.max(sz.x, sz.y);
+            let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
+
+            //console.log("camera dist fit = " + dist);
+
+            let ctr = new THREE.Vector3();
+            bbox.getCenter(ctr);
+
+            controls.target.set(ctr.x, ctr.y, ctr.z);
+            controls.update();
+
+            camera.position.set(ctr.x, ctr.y, ctr.z - dist);
+            camera.lookAt(ctr.x, ctr.y, ctr.z);
+
+        }
+
+        function screenToNormalized(px, py) {
+
+            //rayLog(3, "mouse px : " + px + "," + py);
+
+            var cx = (px / renderer.domElement.clientWidth) * 2.0 - 1.0;
+            var cy = (1.0 - py / renderer.domElement.clientHeight) * 2.0 - 1.0;
+            //rayLog(3, "normalized (-1,1) coord : " + cx + "," + cy);
+
+            var nc = new THREE.Vector2(cx, cy);
+            return nc;
+        }
+
+        // load THREE.DracoLoader load mesh
+        function loadZrest() {
+
+            const loader = new DRACOLoader();
+
+            loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+            loader.preload();
+
+            for (let idx = 0; idx < 308; idx++) {
+
+                let res = fetch("../../data/" + idx + ".drc").then(res => {
+                    return res.arrayBuffer();
+                }).then(ab => {
+                    let buf = new Uint8Array(ab);
+
+                    let blob = new Blob([buf]);
+                    let drcUrl = URL.createObjectURL(blob);
+
+                    loader.load(
+                        //'./data/bunny.drc',
+                        //'../../data/307.drc',
+                        drcUrl,
+                        function (geom) {
+
+                            let mesh = new THREE.Mesh(geom, toon_material);
+                            mesh._index = idx;
+
+                            geom.computeVertexNormals();
+                            root.add(mesh);
+                            setCameraFit(root);
+
+                            //console.log("resolve drc " + idx);
+                        },
+                        function (xhr) {
+                            //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                        },
+                        function (err) {
+                            console.log('DracoLoader error' + err);
+                        }
+                    );
+                });
+
+            }
+
+        }
+
+        animate();
+
+        loadZrest();
+
+
+    </script>
+
+
+</body>
+</html>
