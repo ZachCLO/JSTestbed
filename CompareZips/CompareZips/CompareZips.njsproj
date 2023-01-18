@@ -42,6 +42,7 @@
     <Content Include="draco_js\draco_wasm_wrapper_gltf.js" />
     <Content Include="draco_js\time_draco_decode.html" />
     <Content Include="eff_toon.html" />
+    <Content Include="eff_toon_composer.html" />
     <Content Include="package.json" />
     <Content Include="index.html">
       <SubType>Code</SubType>
