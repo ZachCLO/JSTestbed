@@ -8,48 +8,6 @@
 </head>
 <body>
 
-    <script id="vertexShader" type="x-shader/x-vertex">
-
-        varying float dotN;
-        varying vec4 vcolor;
-        varying vec2 vUV;
-
-        void main()	{
-            vUV = uv;
-            vec3 cdir = normalize(cameraPosition.xyz - position.xyz);
-            dotN = max(0.0, dot(cdir, normal));
-            vcolor = vec4(normal.xyz, 1);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-
-    </script>
-
-    <script id="fragmentShader" type="x-shader/x-fragment">
-
-        varying vec2 vUV;
-        varying vec4 vcolor;
-        varying float dotN;
-        uniform sampler2D sMainTex;
-
-        void main()	{
-
-            vec4 fColor = vec4(1, 1, 1, 1);
-            //fColor = vcolor;
-            if (dotN < 0.1) {
-                fColor = vec4(0, 0, 0, 1);
-            } else if (dotN < 0.5) {
-                fColor = vec4(0.5, 0.5, 0.5, 1);
-            } else if (dotN < 0.8) {
-                fColor = vec4(0.75, 0.75, 0.75, 1);
-            } else {
-                fColor = vec4(1, 1, 1, 1);
-            }
-
-            gl_FragColor = fColor * texture2D( sMainTex, vUV );
-        }
-
-    </script>
-
 
     <div id="three_render" style="width:600px;height:600px;float:left;"></div>
 
@@ -67,6 +25,18 @@
         import * as THREE from 'three';
         import { DRACOLoader } from './node_modules/three/examples/jsm/loaders/DRACOLoader.js';
         import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { EffectComposer } from './node_modules/three/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from './node_modules/three/examples/jsm/postprocessing/RenderPass.js';
+        import { OutlinePass } from './node_modules/three/examples/jsm/postprocessing/OutlinePass.js';
+        import { FilmPass } from './node_modules/three/examples/jsm/postprocessing/FilmPass.js';
+        import { RenderPixelatedPass } from './node_modules/three/examples/jsm/postprocessing/RenderPixelatedPass.js';
+        import { ShaderPass } from './node_modules/three/examples/jsm/postprocessing/ShaderPass.js';
+        import { ToonShader1, ToonShader2, ToonShaderHatching, ToonShaderDotted } from './node_modules/three/examples/jsm/shaders/ToonShader.js';
+        import { FXAAShader } from './node_modules/three/examples/jsm/shaders/FXAAShader.js';
+
+        //let p = new THREE.Vector3(0, 0, 1).cross(new THREE.Vector3(1, 0, 0));
+        //console.log(p.y);
+
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -100,23 +70,51 @@
         const root = new THREE.Group();
         scene.add(root);
 
-
+        
         const main_tex = new THREE.TextureLoader().load('../../data/checked.jpg');
-
-        let uniforms = {
-            cdir: { value: new THREE.Vector3(1, 0, 0) },
-            sMainTex: { value: main_tex },
-        };
-
-        const toon_material = new THREE.ShaderMaterial({
-            uniforms: uniforms,
-            vertexShader: document.getElementById('vertexShader').textContent,
-            fragmentShader: document.getElementById('fragmentShader').textContent
+        const material = new THREE.MeshBasicMaterial({
+            //map: main_tex,
+            color: 0xffffff,
         });
 
+        const composer = new EffectComposer(renderer);
+
+        const defPass = new RenderPass(scene, camera);
+        //const defPass = new ShaderPass(ToonShader2);
+        composer.addPass(defPass);
+
+        const outlinePass = new OutlinePass(new THREE.Vector2(600, 600), scene, camera);
+        outlinePass.selectedObjects = [];
+        outlinePass.usePatternTexture = false;
+        outlinePass.edgeStrength = 10.0;
+        outlinePass.edgeThickness = 4.0;
+        outlinePass.visibleEdgeColor.set('#000000');
+        outlinePass.hiddenEdgeColor.set('#0000ff');
+        outlinePass.renderToScreen = false;
+        composer.addPass(outlinePass);
+
+        /*
+        const filmPass = new FilmPass(
+            0.65,   // noise intensity
+            0.025,  // scanline intensity
+            324,    // scanline count
+            false,  // grayscale
+        );
+        filmPass.renderToScreen = true;
+        composer.addPass(filmPass);
+        */
+
+        /*
+        const pixelPass = new RenderPixelatedPass(16, scene, camera);
+        pixelPass.renderToScreen = true;
+        composer.addPass(pixelPass);
+        */
 
         function render() {
-            renderer.render(scene, camera);
+
+            //uniforms["cdir"].value = cdir;
+            //renderer.render(scene, camera);
+            composer.render();
         }
 
         function animate() {
@@ -128,9 +126,6 @@
 
             let bbox = new THREE.Box3();
             bbox.expandByObject(obj);
-
-            //console.log("obj bbox " + bbox.min.x + "," + bbox.min.y + "," + bbox.min.z + " - " + bbox.max.x + "," + bbox.max.y + "," + bbox.max.z)
-
             let sz = new THREE.Vector3();
             bbox.getSize(sz);
 
@@ -148,6 +143,7 @@
             camera.position.set(ctr.x, ctr.y, ctr.z - dist);
             camera.lookAt(ctr.x, ctr.y, ctr.z);
 
+            animate();
         }
 
         function screenToNormalized(px, py) {
@@ -186,11 +182,12 @@
                         drcUrl,
                         function (geom) {
 
-                            let mesh = new THREE.Mesh(geom, toon_material);
+                            let mesh = new THREE.Mesh(geom, material);
                             mesh._index = idx;
 
                             geom.computeVertexNormals();
                             root.add(mesh);
+
                             setCameraFit(root);
 
                             //console.log("resolve drc " + idx);
