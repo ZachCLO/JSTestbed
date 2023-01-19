@@ -68,6 +68,10 @@
         import { DRACOLoader } from './node_modules/three/examples/jsm/loaders/DRACOLoader.js';
         import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
 
+        import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+        import { FBXLoader } from './node_modules/three/examples/jsm/loaders/FBXLoader.js';
+
+
         var renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(600, 600);
@@ -85,8 +89,8 @@
         directionalLight.lookAt(0, 0, 0);
         scene.add(directionalLight);
 
-        const camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 10, 5000);
-        camera.position.set(1000, 1000, 1000);
+        const camera = new THREE.PerspectiveCamera(60, 1.0, 0.1, 100);
+        camera.position.set(1, 1, 1);
 
         const cameraLight = new THREE.PointLight(0xffcccc, 1);
         camera.add(cameraLight);
@@ -165,6 +169,24 @@
         // load THREE.DracoLoader load mesh
         function loadZrest() {
 
+            /*
+            const floader = new GLTFLoader().setPath("../../data/fbx/");
+            floader.load("standford-bunny.fbx", function (gltf) {
+                root.add(gltf.scene);
+                setCameraFit(root);
+                animate();
+            });
+            */
+            
+            const gloader = new GLTFLoader().setPath("../../data/gltf/zach_clo/");
+            gloader.load("clo_sample.gltf", function (gltf) {
+                root.add(gltf.scene);
+                setCameraFit(root);
+                animate();
+            });
+            
+
+            /*
             const loader = new DRACOLoader();
 
             loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
@@ -172,7 +194,7 @@
 
             for (let idx = 0; idx < 308; idx++) {
 
-                let res = fetch("../../data/" + idx + ".drc").then(res => {
+                let res = fetch("../../data/drc/" + idx + ".drc").then(res => {
                     return res.arrayBuffer();
                 }).then(ab => {
                     let buf = new Uint8Array(ab);
@@ -205,6 +227,7 @@
                 });
 
             }
+            */
 
         }
 

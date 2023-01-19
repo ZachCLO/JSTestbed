@@ -43,6 +43,15 @@
     <Content Include="draco_js\time_draco_decode.html" />
     <Content Include="eff_toon.html" />
     <Content Include="eff_toon_composer.html" />
+    <Content Include="gltf_loader.html">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="OldTVPass.js">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="OldTVShader.js">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="package.json" />
     <Content Include="index.html">
       <SubType>Code</SubType>
