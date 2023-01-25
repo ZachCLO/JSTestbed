@@ -31,6 +31,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="CartoonPass.js" />
     <Content Include="draco_js\draco_decoder.js" />
     <Content Include="draco_js\draco_decoder.wasm" />
     <Content Include="draco_js\draco_decoder_gltf.js" />
@@ -46,17 +47,19 @@
     <Content Include="gltf_loader.html">
       <SubType>Code</SubType>
     </Content>
-    <Content Include="OldTVPass.js">
-      <SubType>Code</SubType>
-    </Content>
-    <Content Include="OldTVShader.js">
-      <SubType>Code</SubType>
-    </Content>
+    <Content Include="OldMoviePass.js" />
+    <Content Include="OldMovieShader.js" />
     <Content Include="package.json" />
     <Content Include="index.html">
       <SubType>Code</SubType>
     </Content>
     <Content Include="README.md" />
+    <Content Include="sep_cartoon.html">
+      <SubType>Code</SubType>
+    </Content>
+    <Content Include="sep_oldmovie.html">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="shader_three.html">
       <SubType>Code</SubType>
     </Content>

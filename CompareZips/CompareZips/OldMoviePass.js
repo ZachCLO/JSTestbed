@@ -3,15 +3,15 @@ import {
 	UniformsUtils
 } from 'three';
 import { Pass, FullScreenQuad } from './node_modules/three/examples/jsm/postprocessing/Pass.js';
-import { OldTVShader } from './OldTVShader.js';
+import { OldMovieShader } from './OldMovieShader.js';
 
-class OldTVPass extends Pass {
+class OldMoviePass extends Pass {
 
 	constructor() {
 
 		super();
 
-		const shader = OldTVShader;
+		const shader = OldMovieShader;
 
 		this.uniforms = UniformsUtils.clone(shader.uniforms);
 
@@ -62,4 +62,4 @@ class OldTVPass extends Pass {
 
 }
 
-export { OldTVPass };
+export { OldMoviePass };

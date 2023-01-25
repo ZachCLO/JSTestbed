@@ -1,4 +1,4 @@
-const OldTVShader = {
+const OldMovieShader = {
 
 	uniforms: {
 
@@ -87,4 +87,4 @@ const OldTVShader = {
 
 };
 
-export { OldTVShader };
+export { OldMovieShader };
