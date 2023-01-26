@@ -9,7 +9,7 @@
 <body>
 
 
-    <div id="three_render" style="width:600px;height:600px;float:left;"></div>
+    <div id="three_render" style="width:800px;height:600px;float:left;"></div>
 
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -30,10 +30,31 @@
         import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
         import { OldMoviePass } from './OldMoviePass.js';
 
+        import { GUI } from './node_modules/three/examples/jsm/libs/lil-gui.module.min.js';
+
+
+        // gui define
+
+        let gui = new GUI();
+        let params = {
+            movieEnable: false,
+            grayScale: true,
+            timeCyclePeriod: 120.0,
+            flicker: 1919.959961,
+            dirtFrequency: 27.07,
+            autoRotation: true
+        };
+
+        //////////////////
+
+        const eRender = document.getElementById("three_render");
+        eRender.getBoundingClientRect();
+        const rwidth = eRender.clientWidth;
+        const rheight = eRender.clientHeight;
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(600, 600);
+        renderer.setSize(rwidth, rheight);
         renderer.setClearColor(0xaaaaaa, 1);
 
         document.getElementById("three_render").appendChild(renderer.domElement);
@@ -48,7 +69,7 @@
         directionalLight.lookAt(0, 0, 0);
         scene.add(directionalLight);
 
-        const camera = new THREE.PerspectiveCamera(60, 1.0, 0.03, 100);
+        const camera = new THREE.PerspectiveCamera(60, rwidth / rheight, 0.03, 100);
         camera.position.set(1, 1, 1);
 
         const cameraLight = new THREE.PointLight(0xffcccc, 1);
@@ -86,12 +107,31 @@
         oldMoviePass.uniforms['AddressTexture'].value = texAddressTexture;
         oldMoviePass.uniforms['DirtSprites'].value = texDirtSprites;
 
-        composer.addPass(oldMoviePass);
-        let oldMovieEnable = true;
+        if (params.movieEnable)
+            composer.addPass(oldMoviePass);
+
+
+        // gui setup
+
+        gui.add(params, 'movieEnable').onChange(() => {
+            if (params.movieEnable) {
+                composer.addPass(oldMoviePass);
+            } else {
+                composer.removePass(oldMoviePass);
+            }
+        });
+        gui.add(oldMoviePass, 'grayScale');
+        gui.add(oldMoviePass, 'timeCyclePeriod').min(10).max(240).step(1);
+        gui.add(oldMoviePass, 'flicker').min(500).max(3000).step(10);
+        gui.add(oldMoviePass, 'dirtFrequency').min(10).max(60).step(.05);
+        gui.add(params, 'autoRotation');
+
+        /////////////////////
 
 
         const clock = new THREE.Clock();
         let timeDuration = 0.0;
+        let rot = 0.0;
 
         function render() {
 
@@ -100,6 +140,12 @@
             let dt = clock.getDelta();
             timeDuration += dt;
             oldMoviePass.uniforms['time'].value = timeDuration;
+
+            if (params.autoRotation) {
+                rot += dt * Math.PI * 0.3;
+                root.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), rot);
+            }
+
             composer.render(dt);
         }
 
@@ -154,21 +200,6 @@
             animate();
         });
 
-
-        document.addEventListener('keyup', (event) => {
-            if (event.key === '1') {
-                if (oldMovieEnable) {
-                    composer.removePass(oldMoviePass);
-                    oldMovieEnable = false;
-                }
-            }
-            else if (event.key === '2') {
-                if (!oldMovieEnable) {
-                    composer.addPass(oldMoviePass);
-                    oldMovieEnable = true;
-                }
-            }
-        });
 
 
 

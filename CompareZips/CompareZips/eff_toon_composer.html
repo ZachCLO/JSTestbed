@@ -206,7 +206,7 @@
         */
 
         const gloader = new GLTFLoader().setPath("../../data/gltf/regular/");
-        gloader.load("regular.glb", function (gltf) {
+        gloader.load("regular.gltf", function (gltf) {
             root.add(gltf.scene);
             setCameraFit(root);
             animate();

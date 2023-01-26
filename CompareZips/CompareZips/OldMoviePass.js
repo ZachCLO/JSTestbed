@@ -23,6 +23,11 @@ class OldMoviePass extends Pass {
 
 		});
 
+		this.grayScale = true;
+		this.timeCyclePeriod = 120.0;
+		this.flicker = 1919.959961;
+		this.dirtFrequency = 27.07;
+
 		//if (grayscale !== undefined) this.uniforms.grayscale.value = grayscale;
 		//if (noiseIntensity !== undefined) this.uniforms.nIntensity.value = noiseIntensity;
 		//if (scanlinesIntensity !== undefined) this.uniforms.sIntensity.value = scanlinesIntensity;
@@ -36,6 +41,11 @@ class OldMoviePass extends Pass {
 
 		this.uniforms['tDiffuse'].value = readBuffer.texture;
 		this.uniforms['time'].value += deltaTime;
+
+		this.uniforms['Grayscale'].value = this.grayScale;
+		this.uniforms['time_cycle_period'].value = this.timeCyclePeriod;
+		this.uniforms['flicker'].value = this.flicker;
+		this.uniforms['DirtFrequency'].value = this.dirtFrequency;
 
 		if (this.renderToScreen) {
 
