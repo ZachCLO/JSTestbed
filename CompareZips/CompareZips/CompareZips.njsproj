@@ -49,6 +49,9 @@
     </Content>
     <Content Include="OldMoviePass.js" />
     <Content Include="OldMovieShader.js" />
+    <Content Include="OldPixelsPass.js">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="package.json" />
     <Content Include="index.html">
       <SubType>Code</SubType>
@@ -60,6 +63,7 @@
     <Content Include="sep_oldmovie.html">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="sep_oldpixels.html" />
     <Content Include="shader_three.html">
       <SubType>Code</SubType>
     </Content>

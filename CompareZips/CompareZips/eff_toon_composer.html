@@ -85,6 +85,7 @@
         const defPass = new RenderPass(scene, camera);
         composer.addPass(defPass);
 
+        /*
         const OldMoviePass = new OldMoviePass();
         const texNoise1 = new THREE.TextureLoader().load('../../data/movie_effect/1D_Noise.png');
         const texNoise2 = new THREE.TextureLoader().load('../../data/movie_effect/1D_Noise2.png');
@@ -96,7 +97,7 @@
         OldMoviePass.uniforms['Noise1'].value = texNoise1;
         OldMoviePass.uniforms['AddressTexture'].value = texAddressTexture;
         OldMoviePass.uniforms['DirtSprites'].value = texDirtSprites;
-
+        */
         //OldMoviePass.uniforms['flicker'].value = 10;
         //OldMoviePass.uniforms['DirtFrequency'].value = 27;
 
@@ -144,11 +145,11 @@
 
             //uniforms["cdir"].value = cdir;
             //renderer.render(scene, camera);
-            let dt = clock.getDelta();
-            timeDuration += dt;
-            OldMoviePass.uniforms['time'].value = timeDuration;
+            //let dt = clock.getDelta();
+            //timeDuration += dt;
+            //OldMoviePass.uniforms['time'].value = timeDuration;
 
-            composer.render(dt);
+            composer.render();
             //filmPass.render();
         }
 
@@ -195,13 +196,22 @@
 
         animate();
 
-
+        /*
         const gloader = new GLTFLoader().setPath("../../data/gltf/jinn1/");
         gloader.load("jinn1.gltf", function (gltf) {
             root.add(gltf.scene);
             setCameraFit(root);
             animate();
         });
+        */
+
+        const gloader = new GLTFLoader().setPath("../../data/gltf/regular/");
+        gloader.load("regular.glb", function (gltf) {
+            root.add(gltf.scene);
+            setCameraFit(root);
+            animate();
+        });
+
 
     </script>
 

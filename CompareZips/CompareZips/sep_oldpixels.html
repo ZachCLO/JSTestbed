@@ -9,7 +9,13 @@
 <body>
 
 
-    <div id="three_render" style="width:600px;height:600px;float:left;"></div>
+    <div id="three_render" style="width:800px;height:600px;float:left;"></div>
+
+    <p id="pixel_size" style="font-size:16pt;">Pixel Size = 8</p>
+    <p id="pixel_box_border" style="font-size: 16pt;">Pixel Box Border = false</p>
+    <p id="depth_edge_str" style="font-size: 16pt;">Depth Edge Str = 0.3</p>
+    <p id="normal_edge_str" style="font-size: 16pt;">Normal Edge Str = 0.4</p>
+
 
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
     <script type="importmap">
@@ -30,10 +36,14 @@
         import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
         import { OldPixelsPass } from './OldPixelsPass.js';
 
+        const eRender = document.getElementById("three_render");
+        eRender.getBoundingClientRect();
+        const rwidth = eRender.clientWidth;
+        const rheight = eRender.clientHeight;
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(600, 600);
+        renderer.setSize(rwidth, rheight);
         renderer.setClearColor(0xaaaaaa, 1);
 
         document.getElementById("three_render").appendChild(renderer.domElement);
@@ -48,7 +58,7 @@
         directionalLight.lookAt(0, 0, 0);
         scene.add(directionalLight);
 
-        const camera = new THREE.PerspectiveCamera(60, 1.0, 0.03, 100);
+        const camera = new THREE.PerspectiveCamera(60, rwidth / rheight, 0.03, 100);
         camera.position.set(1, 1, 1);
 
         const cameraLight = new THREE.PointLight(0xffcccc, 1);
@@ -75,8 +85,8 @@
         composer.addPass(defPass);
 
         const oldPixelsPass = new OldPixelsPass(8, scene, camera);
-        oldPixelsPass.setSize(600, 600);
-        oldPixelsPass.pixelBorders = true;
+        oldPixelsPass.setSize(rwidth, rheight);
+        oldPixelsPass.pixelBorders = false;
         //oldPixelsPass.depthEdgeStrength = 1;
         //oldPixelsPass.normalEdgeStrength = 1;
 
@@ -145,19 +155,74 @@
 
         document.addEventListener('keyup', (event) => {
             if (event.key === '1') {
-                if (oldMovieEnable) {
+                if (oldPixelsEnable) {
                     composer.removePass(oldPixelsPass);
                     oldPixelsEnable = false;
                 }
             }
             else if (event.key === '2') {
-                if (!oldMovieEnable) {
+                if (!oldPixelsEnable) {
                     composer.addPass(oldPixelsPass);
                     oldPixelsEnable = true;
                 }
             }
             else if (event.key === '3') {
                 oldPixelsPass.pixelBorders = !oldPixelsPass.pixelBorders;
+                document.getElementById("pixel_box_border").innerText = "Pixel Box Border = " + oldPixelsPass.pixelBorders;
+            }
+            else if (event.key === 'q') {
+                let ps = oldPixelsPass.pixelSize;
+                if (ps > 4) {
+                    oldPixelsPass.setPixelSize(ps - 1);
+                    console.log("pixel size " + oldPixelsPass.pixelSize);
+                    document.getElementById("pixel_size").innerText = "Pixel Size = " + oldPixelsPass.pixelSize.toFixed(0);
+                    animate();
+                }
+            }
+            else if (event.key === 'w') {
+                let ps = oldPixelsPass.pixelSize;
+                if (ps < 32) {
+                    oldPixelsPass.setPixelSize(ps + 1);
+                    console.log("pixel size " + oldPixelsPass.pixelSize);
+                    document.getElementById("pixel_size").innerText = "Pixel Size = " + oldPixelsPass.pixelSize.toFixed(0);
+                    animate();
+                }
+            }
+            else if (event.key === 'a') {
+                let ps = oldPixelsPass.depthEdgeStrength;
+                if (ps > 0.01) {
+                    oldPixelsPass.depthEdgeStrength = ps - 0.1;
+                    console.log("depth edge str " + oldPixelsPass.depthEdgeStrength);
+                    document.getElementById("depth_edge_str").innerText = "Depth Edge Str = " + oldPixelsPass.depthEdgeStrength.toFixed(1);
+                    animate();
+                }
+            }
+            else if (event.key === 's') {
+                let ps = oldPixelsPass.depthEdgeStrength;
+                if (ps < 1.0) {
+                    oldPixelsPass.depthEdgeStrength = ps + 0.1;
+                    console.log("depth edge str " + oldPixelsPass.depthEdgeStrength);
+                    document.getElementById("depth_edge_str").innerText = "Depth Edge Str = " + oldPixelsPass.depthEdgeStrength.toFixed(1);
+                    animate();
+                }
+            }
+            else if (event.key === 'z') {
+                let ps = oldPixelsPass.normalEdgeStrength;
+                if (ps > 0.01) {
+                    oldPixelsPass.normalEdgeStrength = ps - 0.1;
+                    console.log("normal edge str " + oldPixelsPass.normalEdgeStrength);
+                    document.getElementById("normal_edge_str").innerText = "Normal Edge Str = " + oldPixelsPass.normalEdgeStrength.toFixed(1);
+                    animate();
+                }
+            }
+            else if (event.key === 'x') {
+                let ps = oldPixelsPass.normalEdgeStrength;
+                if (ps < 1.0) {
+                    oldPixelsPass.normalEdgeStrength = ps + 0.1;
+                    console.log("normal edge str " + oldPixelsPass.normalEdgeStrength);
+                    document.getElementById("normal_edge_str").innerText = "Normal Edge Str = " + oldPixelsPass.normalEdgeStrength.toFixed(1);
+                    animate();
+                }
             }
         });
 

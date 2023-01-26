@@ -45,9 +45,11 @@
                 fColor = vec4(1, 1, 1, 1);
             }
 
-            gl_FragColor = fColor * texture2D( sMainTex, vUV );
+            //gl_FragColor = fColor * texture2D( sMainTex, vUV );
 
             gl_FragColor = vec4(vUV.xy, 0, 1);
+
+            //gl_FragColor = texture2D( sMainTex, vUV );
         }
 
     </script>
