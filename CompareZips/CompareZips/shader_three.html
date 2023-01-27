@@ -7,7 +7,7 @@
 </head>
 <body>
 
-	<div id="container" style="width:1024px;height:768px;"></div>
+	<div id="container" style="width:1024px;height:600px;"></div>
 
 	<script id="vertexShader" type="x-shader/x-vertex">
 
@@ -31,24 +31,30 @@
 		uniform float time;
 		uniform sampler2D sMainTex;
 		uniform sampler2D sGraphicTex;
+		uniform bool grp_enable;
 		uniform bool grp_selected;
 
 		void main()	{
 
-			int edg = 0;
-			if (grp_selected) {
-				if (((vUV2.x > 0.0 && vUV2.x < 0.02) || (vUV2.x > 0.98 && vUV2.x < 1.00)) && (vUV2.y > 0.0 && vUV2.y < 1.0))
-					edg++;
-				if (((vUV2.y > 0.0 && vUV2.y < 0.02) || (vUV2.y > 0.98 && vUV2.y < 1.00)) && (vUV2.x > 0.0 && vUV2.x < 1.0))
-					edg++;
-			}
+			if (grp_enable) {
+				int edg = 0;
+				if (grp_selected) {
+					if (((vUV2.x > 0.0 && vUV2.x < 0.02) || (vUV2.x > 0.98 && vUV2.x < 1.00)) && (vUV2.y > 0.0 && vUV2.y < 1.0))
+						edg++;
+					if (((vUV2.y > 0.0 && vUV2.y < 0.02) || (vUV2.y > 0.98 && vUV2.y < 1.00)) && (vUV2.x > 0.0 && vUV2.x < 1.0))
+						edg++;
+				}
 
-			if (edg > 0) {
-				gl_FragColor = vec4(1, 0, 0, 1);
-			} else {
-				float ga = texture2D( sGraphicTex, vUV2 ).a;
-				float gb = (grp_selected && (vUV2.x > 0.0 && vUV2.x < 1.0 && vUV2.y > 0.0 && vUV2.y < 1.0)) ? 0.7 : 1.0;
-				gl_FragColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
+				if (edg > 0) {
+					gl_FragColor = vec4(1, 0, 0, 1);
+				} else {
+					float ga = texture2D( sGraphicTex, vUV2 ).a;
+					float gb = (grp_selected && (vUV2.x > 0.0 && vUV2.x < 1.0 && vUV2.y > 0.0 && vUV2.y < 1.0)) ? 0.7 : 1.0;
+					gl_FragColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
+				}
+			}
+			else {
+				gl_FragColor = texture2D( sMainTex, vUV );
 			}
 		}
 
@@ -78,37 +84,6 @@
 
 		let uniforms;
 
-        // init graphics info
-		let grp_ctr = new THREE.Vector2(0.5, 0.56);
-        let grp_w = 0.4;
-        let grp_h = 0.72;
-		let grp_rot = 0.0;
-
-        let lbDown = false;
-        let grDragStart = false;
-        let grPickUV = new THREE.Vector2(0, 0);
-        let grPickOffset = new THREE.Vector2(0, 0);
-
-		let rotPerPixel = 1.0 / 180.0 * Math.PI;
-
-		let grp_tr_mat = new THREE.Matrix3();
-
-		let drag_mode_rot = false;
-
-        const raycaster = new THREE.Raycaster();
-
-
-		//let v1 = new THREE.Vector3(1, 0, 0);
-        //let v2 = new THREE.Vector3(0, 0, 1);
-        //let cp = v1.clone().normalize().cross(v2.clone().normalize());
-		//console.log(cp.y);
-
-
-
-
-		init();
-		animate();
-
 
         function screenToNormalized(px, py) {
 
@@ -123,195 +98,236 @@
         }
 
 
-		function init() {
 
-			const container = document.getElementById('container');
+        // init graphics info
+		let grp_ctr = new THREE.Vector2(0.5, 0.56);
+        let grp_w = 0.4;
+        let grp_h = 0.72;
+		let grp_rot = 0.0;
 
-			camera = new THREE.PerspectiveCamera(60, 1024.0 / 768.0, 0.1, 100);
-            camera.up.set(0, 1, 0);
-			//camera.position.set(0, -10, 10);
-			//camera.lookAt(0, 0, 0);
+        let lbDown = false;
+        let grDragStart = false;
+        let grPickUV = new THREE.Vector2(0, 0);
+        let grPickOffset = new THREE.Vector2(0, 0);
 
-			scene = new THREE.Scene();
+		let rotPerPixel = 1.0 / 180.0 * Math.PI;
 
-			const geometry = new THREE.PlaneGeometry(10, 10, 20, 20).rotateX(-Math.PI / 2.0);
-			geometry.computeVertexNormals();
+		let grp_tr_mat = new THREE.Matrix3();
+        let grp_tr_mat2 = new THREE.Matrix3();
 
-			// mesh height tune
-			let parr = geometry.attributes.position.array;
-			for (let i = 0; i < 20; i++) {
-				for (let j = 0; j < 20; j++) {
-					parr[((20 * i) + j) * 3 + 1] = Math.random() * 0.25 + (1. - Math.abs(10 - i) * 0.1) + (1. - Math.abs(10 - j) * 0.1);
-				}
+		let drag_mode_rot = false;
+
+        const raycaster = new THREE.Raycaster();
+
+
+		//let v1 = new THREE.Vector3(1, 0, 0);
+        //let v2 = new THREE.Vector3(0, 0, 1);
+        //let cp = v1.clone().normalize().cross(v2.clone().normalize());
+		//console.log(cp.y);
+
+		const container = document.getElementById('container');
+
+		camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.1, 100);
+        camera.up.set(0, 1, 0);
+		//camera.position.set(0, -10, 10);
+		//camera.lookAt(0, 0, 0);
+
+		scene = new THREE.Scene();
+
+		const geometry = new THREE.PlaneGeometry(10, 10, 20, 20).rotateX(-Math.PI / 2.0);
+		geometry.computeVertexNormals();
+
+		// mesh height tune
+		let parr = geometry.attributes.position.array;
+		for (let i = 0; i < 20; i++) {
+			for (let j = 0; j < 20; j++) {
+				parr[((20 * i) + j) * 3 + 1] = Math.random() * 0.25 + (1. - Math.abs(10 - i) * 0.1) + (1. - Math.abs(10 - j) * 0.1);
 			}
+		}
 
 
 
-			// second uv
-			//let uvs = geometry.attributes.uv.array;
-			//geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
-			geometry.attributes.uv2 = geometry.attributes.uv.clone();
+		// second uv
+		//let uvs = geometry.attributes.uv.array;
+		//geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+		geometry.attributes.uv2 = geometry.attributes.uv.clone();
 
-			const main_tex = new THREE.TextureLoader().load('../../data/checked.jpg');
-            const gr_tex = new THREE.TextureLoader().load('../../data/ralph-lauren.png');
+		const main_tex = new THREE.TextureLoader().load('../../data/drc/checked.jpg');
+        const gr_tex = new THREE.TextureLoader().load('../../data/drc/ralph-lauren.png');
 
-			uniforms = {
-				//time: { value: 1.0 },
-                grp_trf: { value: grp_tr_mat },
-				sMainTex: { value: main_tex },
-				sGraphicTex: { value: gr_tex },
-                grp_selected: { value: false }
-			};
+		uniforms = {
+			//time: { value: 1.0 },
+            grp_trf: { value: grp_tr_mat },
+			sMainTex: { value: main_tex },
+			sGraphicTex: { value: gr_tex },
+			grp_enable: { value: false },
+            grp_selected: { value: false }
+		};
 
-			const material = new THREE.ShaderMaterial({
+		const material = new THREE.ShaderMaterial({
 
-				uniforms: uniforms,
-				vertexShader: document.getElementById('vertexShader').textContent,
-				fragmentShader: document.getElementById('fragmentShader').textContent
+			uniforms: uniforms,
+			vertexShader: document.getElementById('vertexShader').textContent,
+			fragmentShader: document.getElementById('fragmentShader').textContent
 
-			});
+		});
 
-			const mesh = new THREE.Mesh(geometry, material);
-			scene.add(mesh);
 
-			renderer = new THREE.WebGLRenderer();
-			renderer.setSize(1024, 768);
-			container.appendChild(renderer.domElement);
 
-			cameraControl = new OrbitControls(camera, renderer.domElement);
-			cameraControl.target.set(0, 0, 0);
-			cameraControl.update();
-            cameraControl.enabled = true;
-            drag_mode_rot = false;
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
 
-			camera.position.set(0, 10, 10);
-			camera.lookAt(0, 0, 0);
 
-            updateGraphicTexTransform();
 
-			onWindowResize();
 
-			window.addEventListener('resize', onWindowResize);
 
-			window.addEventListener('keyup', (event) => {
 
-				if (lbDown || grDragStart)
-					return;
+		const material2 = material.clone();
+        material2.uniforms = THREE.UniformsUtils.clone(material.uniforms);
 
-				if (event.key === '1') {
-					cameraControl.enabled = true;
-					drag_mode_rot = false;
-                    container.style.cursor = "initial";
-				} if (event.key === '2') {
-                    cameraControl.enabled = false;
-                    drag_mode_rot = false;
-                    container.style.cursor = "move";
-                } if (event.key === '3') {
-                    cameraControl.enabled = false;
-                    drag_mode_rot = true;
-                    container.style.cursor = "grab";
-				} if (event.key === 'w') {
-					material.wireframe = !material.wireframe;
-                }
-			});
 
-            container.addEventListener('pointerdown', (event) => {
+		const mesh2 = new THREE.Mesh(geometry, material2);
+		mesh2.position.set(10.1, 0, 0);
+		scene.add(mesh2);
 
-				if (cameraControl.enabled)
-					return;
 
-				if (event.button === 0) {
-					if (!lbDown) {
+		renderer = new THREE.WebGLRenderer();
+		renderer.setSize(1024, 600);
+		container.appendChild(renderer.domElement);
 
-						// pick mesh point
-                        let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
-                        raycaster.setFromCamera(normalizedPosition, camera);
-                        let intersectedObjects = raycaster.intersectObject(mesh, true);
-                        if (intersectedObjects && intersectedObjects.length > 0) {
+		cameraControl = new OrbitControls(camera, renderer.domElement);
+		cameraControl.target.set(0, 0, 0);
+		cameraControl.update();
+        cameraControl.enabled = true;
+        drag_mode_rot = false;
 
-                            let pick_mesh = intersectedObjects[0].object;
-							if (pick_mesh) {
-								grPickUV.set(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
-                                if (Math.abs(grPickUV.x - grp_ctr.x) < (grp_w*0.5) && Math.abs(grPickUV.y - grp_ctr.y) < (grp_h*0.5)) {
-									grPickOffset = grPickUV.clone().sub(grp_ctr);
-                                    console.log("picked graphic with offset " + grPickOffset.x + "," + grPickOffset.y);
-									grDragStart = true;
-								} else {
-                                    console.log("picked out of graphic " + grPickUV.x + "," + grPickUV.y + " (center = " + grp_ctr.x + "," + grp_ctr.y + ")");
-								}
-                            }
+		camera.position.set(0, 10, 10);
+		camera.lookAt(0, 0, 0);
 
-                        }
+        updateGraphicTexTransform();
 
-						lbDown = true;
-						container.setPointerCapture(event.pointerId);
-					}
-				}
+		onWindowResize();
 
-			});
+		window.addEventListener('resize', onWindowResize);
 
-            container.addEventListener('pointerup', (event) => {
+		window.addEventListener('keyup', (event) => {
 
-                if (cameraControl.enabled)
-                    return;
+			if (lbDown || grDragStart)
+				return;
 
-				if (event.button === 0) {
-					if (lbDown) {
+			if (event.key === '1') {
+				cameraControl.enabled = true;
+				drag_mode_rot = false;
+                container.style.cursor = "initial";
+			} if (event.key === '2') {
+                cameraControl.enabled = false;
+                drag_mode_rot = false;
+                container.style.cursor = "move";
+            } if (event.key === '3') {
+                cameraControl.enabled = false;
+                drag_mode_rot = true;
+                container.style.cursor = "grab";
+			} if (event.key === 'w') {
+				material.wireframe = !material.wireframe;
+            }
+		});
 
-						if (grDragStart) {
-                            grDragStart = false;
-						}
+        container.addEventListener('pointerdown', (event) => {
 
-						lbDown = false;
-						container.releasePointerCapture(event.pointerId);
-					}
-                }
+			if (cameraControl.enabled)
+				return;
 
-            });
+			if (event.button === 0) {
+				if (!lbDown) {
 
-            container.addEventListener('pointermove', (event) => {
-
-                if (cameraControl.enabled)
-                    return;
-
-				if (lbDown && grDragStart) {
-
-                    // drag move to mesh point
+					// pick mesh point
                     let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
                     raycaster.setFromCamera(normalizedPosition, camera);
                     let intersectedObjects = raycaster.intersectObject(mesh, true);
                     if (intersectedObjects && intersectedObjects.length > 0) {
 
                         let pick_mesh = intersectedObjects[0].object;
-                        if (pick_mesh) {
-                            console.log("move to mesh uv " + intersectedObjects[0].uv.x + "," + intersectedObjects[0].uv.y);
-							let moveToUV = intersectedObjects[0].uv.clone();
-
-							if (drag_mode_rot) {
-								let sa = grPickUV.clone().sub(grp_ctr).angle();
-								let ea = moveToUV.clone().sub(grp_ctr).angle();
-								let delta_angle = ea - sa;
-
-								grp_rot -= delta_angle;
-                                updateGraphicTexTransform();
+						if (pick_mesh) {
+							grPickUV.set(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
+                            if (Math.abs(grPickUV.x - grp_ctr.x) < (grp_w*0.5) && Math.abs(grPickUV.y - grp_ctr.y) < (grp_h*0.5)) {
+								grPickOffset = grPickUV.clone().sub(grp_ctr);
+                                console.log("picked graphic with offset " + grPickOffset.x + "," + grPickOffset.y);
+								grDragStart = true;
 							} else {
-                                grp_ctr = moveToUV.clone().sub(grPickOffset);
-                                updateGraphicTexTransform();
+                                console.log("picked out of graphic " + grPickUV.x + "," + grPickUV.y + " (center = " + grp_ctr.x + "," + grp_ctr.y + ")");
 							}
-
-							grPickUV = moveToUV;
-
                         }
+
                     }
 
-
+					lbDown = true;
+					container.setPointerCapture(event.pointerId);
 				}
+			}
 
-            });
+		});
+
+        container.addEventListener('pointerup', (event) => {
+
+            if (cameraControl.enabled)
+                return;
+
+			if (event.button === 0) {
+				if (lbDown) {
+
+					if (grDragStart) {
+                        grDragStart = false;
+					}
+
+					lbDown = false;
+					container.releasePointerCapture(event.pointerId);
+				}
+            }
+
+        });
+
+        container.addEventListener('pointermove', (event) => {
+
+            if (cameraControl.enabled)
+                return;
+
+			if (lbDown && grDragStart) {
+
+                // drag move to mesh point
+                let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+                raycaster.setFromCamera(normalizedPosition, camera);
+                let intersectedObjects = raycaster.intersectObject(mesh, true);
+                if (intersectedObjects && intersectedObjects.length > 0) {
+
+                    let pick_mesh = intersectedObjects[0].object;
+                    if (pick_mesh) {
+                        console.log("move to mesh uv " + intersectedObjects[0].uv.x + "," + intersectedObjects[0].uv.y);
+						let moveToUV = intersectedObjects[0].uv.clone();
+
+						if (drag_mode_rot) {
+							let sa = grPickUV.clone().sub(grp_ctr).angle();
+							let ea = moveToUV.clone().sub(grp_ctr).angle();
+							let delta_angle = ea - sa;
+
+							grp_rot -= delta_angle;
+                            updateGraphicTexTransform();
+						} else {
+                            grp_ctr = moveToUV.clone().sub(grPickOffset);
+                            updateGraphicTexTransform();
+						}
+
+						grPickUV = moveToUV;
+
+                    }
+                }
 
 
+			}
 
-		}
+        });
+
+		animate();
+
 
 		function updateGraphicTexTransform() {
 
@@ -320,9 +336,13 @@
 			grp_tr_mat.scale(grp_w, grp_h);
 			grp_tr_mat.rotate(grp_rot);
 			grp_tr_mat.translate(grp_ctr.x, grp_ctr.y);
-			grp_tr_mat.invert();
 
-            uniforms['grp_trf'].value = grp_tr_mat;
+			grp_tr_mat2 = grp_tr_mat.clone();
+			grp_tr_mat2.translate(-1.0, 0.0);
+
+			grp_tr_mat.invert();
+            grp_tr_mat2.invert();
+
 		}
 
 		function onWindowResize() {
@@ -339,7 +359,13 @@
 
 			//uniforms['time'].value = performance.now() / 1000;
             // update grp coordinates
-            uniforms['grp_selected'].value = grDragStart;
+            material.uniforms['grp_selected'].value = grDragStart;
+			material2.uniforms['grp_selected'].value = grDragStart;
+
+            material.uniforms['grp_enable'].value = true;
+            material.uniforms['grp_trf'].value = grp_tr_mat;
+            material2.uniforms['grp_enable'].value = true;
+            material2.uniforms['grp_trf'].value = grp_tr_mat2;
 
 			renderer.render(scene, camera);
 
