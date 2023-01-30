@@ -205,8 +205,8 @@
         });
         */
 
-        const gloader = new GLTFLoader().setPath("../../data/gltf/regular/");
-        gloader.load("regular.gltf", function (gltf) {
+        const gloader = new GLTFLoader().setPath("../../data/gltf/zach_clo/");
+        gloader.load("clo_sample.gltf", function (gltf) {
             root.add(gltf.scene);
             setCameraFit(root);
             animate();

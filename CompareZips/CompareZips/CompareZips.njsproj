@@ -52,6 +52,8 @@
     <Content Include="OldPixelsPass.js">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="OldTVPass.js" />
+    <Content Include="OldTVShader.js" />
     <Content Include="package.json" />
     <Content Include="index.html">
       <SubType>Code</SubType>
@@ -64,6 +66,10 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="sep_oldpixels.html" />
+    <Content Include="sep_oldtv.html" />
+    <Content Include="shader_ig_uv.html">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="shader_three.html">
       <SubType>Code</SubType>
     </Content>
