@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Old TV Effect</title>
+    <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+</head>
+<body>
+
+
+    <div id="three_render" style="width:800px;height:600px;float:left;"></div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "./node_modules/three/build/three.module.js"
+          }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { EffectComposer } from './node_modules/three/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from './node_modules/three/examples/jsm/postprocessing/RenderPass.js';
+
+        import { DDSLoader } from './node_modules/three/examples/jsm/loaders/DDSLoader.js';
+
+        import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+        import { OldTVPass } from './OldTVPass.js';
+
+        import { GUI } from './node_modules/three/examples/jsm/libs/lil-gui.module.min.js';
+
+        import WebGL from './node_modules/three/examples/jsm/capabilities/WebGL.js';
+
+        if (WebGL.isWebGL2Available() === false) {
+
+            document.body.appendChild(WebGL.getWebGL2ErrorMessage());
+
+        }
+
+
+        // gui define
+
+        let gui = new GUI();
+        let params = {
+            tvEnable: false,
+            autoRotation: true
+        };
+
+        //////////////////
+
+        const eRender = document.getElementById("three_render");
+        eRender.getBoundingClientRect();
+        const rwidth = eRender.clientWidth;
+        const rheight = eRender.clientHeight;
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(rwidth, rheight);
+        renderer.setClearColor(0xaaaaaa, 1);
+
+        document.getElementById("three_render").appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(-10, -10, 10);
+        directionalLight.lookAt(0, 0, 0);
+        scene.add(directionalLight);
+
+        const camera = new THREE.PerspectiveCamera(60, rwidth / rheight, 0.03, 100);
+        camera.position.set(1, 1, 1);
+
+        const cameraLight = new THREE.PointLight(0xffcccc, 1);
+        camera.add(cameraLight);
+
+        scene.add(camera);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        const root = new THREE.Group();
+        scene.add(root);
+
+        //const main_tex = new THREE.TextureLoader().load('../../data/checked.jpg');
+        //const material = new THREE.MeshBasicMaterial({
+        //    //map: main_tex,
+        //color: 0xffffff,
+        //});
+
+        const composer = new EffectComposer(renderer);
+
+        const defPass = new RenderPass(scene, camera);
+        composer.addPass(defPass);
+
+        const oldTVPass = new OldTVPass();
+
+        const ddsLoader = new DDSLoader();
+        const texNoise = ddsLoader.load('../../data/movie_effect/NoiseVolume.dds');
+        const texRand = ddsLoader.load('../../data/movie_effect/Random3D.dds');
+
+        oldTVPass.uniforms['Noise'].value = texNoise;
+        oldTVPass.uniforms['Rand'].value = texRand;
+
+        if (params.tvEnable)
+            composer.addPass(oldTVPass);
+
+
+        // gui setup
+
+        gui.add(params, 'tvEnable').onChange(() => {
+            if (params.tvEnable) {
+                composer.addPass(oldTVPass);
+            } else {
+                composer.removePass(oldTVPass);
+            }
+        });
+        gui.add(params, 'autoRotation');
+
+        /////////////////////
+
+
+        const clock = new THREE.Clock();
+        let timeDuration = 0.0;
+        let rot = 0.0;
+
+        function render() {
+
+            //uniforms["cdir"].value = cdir;
+            //renderer.render(scene, camera);
+            let dt = clock.getDelta();
+            timeDuration += dt;
+            oldTVPass.uniforms['time'].value = timeDuration;
+
+            if (params.autoRotation) {
+                rot += dt * Math.PI * 0.3;
+                root.setRotationFromAxisAngle(new THREE.Vector3(0, 1, 0), rot);
+            }
+
+            composer.render(dt);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        function setCameraFit(obj) {
+
+            let bbox = new THREE.Box3();
+            bbox.expandByObject(obj);
+            let sz = new THREE.Vector3();
+            bbox.getSize(sz);
+
+            let as = Math.max(sz.x, sz.y);
+            let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
+
+            //console.log("camera dist fit = " + dist);
+
+            let ctr = new THREE.Vector3();
+            bbox.getCenter(ctr);
+
+            controls.target.set(ctr.x, ctr.y, ctr.z);
+            controls.update();
+
+            camera.position.set(ctr.x, ctr.y, ctr.z + dist);
+            camera.lookAt(ctr.x, ctr.y, ctr.z);
+
+            animate();
+        }
+
+        function screenToNormalized(px, py) {
+
+            //rayLog(3, "mouse px : " + px + "," + py);
+
+            var cx = (px / renderer.domElement.clientWidth) * 2.0 - 1.0;
+            var cy = (1.0 - py / renderer.domElement.clientHeight) * 2.0 - 1.0;
+            //rayLog(3, "normalized (-1,1) coord : " + cx + "," + cy);
+
+            var nc = new THREE.Vector2(cx, cy);
+            return nc;
+        }
+
+        animate();
+
+
+        const gloader = new GLTFLoader().setPath("../../data/gltf/jinn1/");
+        gloader.load("jinn1.gltf", function (gltf) {
+            root.add(gltf.scene);
+            setCameraFit(root);
+            animate();
+        });
+
+
+
+
+    </script>
+
+
+</body>
+</html>
