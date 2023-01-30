@@ -173,6 +173,8 @@
 
         const gloader = new GLTFLoader().setPath("../../data/gltf/zach_clo/");
         gloader.load("clo_sample.gltf", function (gltf) {
+        //const gloader = new GLTFLoader().setPath("../../data/gltf/regular/");
+        //gloader.load("regular.gltf", function (gltf) {
 
             let grp = null;
             for (let obj of gltf.scene.children[0].children) {
@@ -184,10 +186,16 @@
 
             if (grp) {
 
+                let idx = 0;
                 for (let m of grp.children) {
+                    m._index = idx;
+                    idx++;
                     meshes.push(m);
                     mats.push(m.material);
                 }
+
+                grp.remove(meshes[4]);
+                grp.remove(meshes[10]);
 
                 root.add(grp);
             }
@@ -214,6 +222,7 @@
 
                     let pt = intersectedObjects[0].point;
                     let uv = intersectedObjects[0].uv;
+                    console.log("pick mesh idx " + pick_mesh._index);
                     console.log("pick mesh point " + pt.x + "," + pt.y + "," + pt.z);
                     console.log("pick mesh uv " + uv.x + "," + uv.y);
 
