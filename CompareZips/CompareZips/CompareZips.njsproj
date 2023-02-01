@@ -47,6 +47,9 @@
     <Content Include="gltf_loader.html">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="KtoRGB.html">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="OldMoviePass.js" />
     <Content Include="OldMovieShader.js" />
     <Content Include="OldPixelsPass.js">

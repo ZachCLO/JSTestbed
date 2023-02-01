@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Old 8-bit pixels Effect</title>
+    <script type="text/javascript" src="node_modules/jszip/dist/jszip.js"></script>
+</head>
+<body>
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+
+        varying vec2 vUV;
+
+        void main()	{
+            vUV = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+
+        varying vec2 vUV;
+        uniform float time;
+
+        vec3 KtoRGB(float K) {
+            float temp = K / 100.0;
+            float r = 1.0;
+            float g = 1.0;
+            float b = 1.0;
+
+            if (temp <= 66.0) {
+                r = 1.0;
+            } else {
+                r = temp - 60.0;
+                r = 329.698727446 * pow(r, -0.1332047592);
+                r = r / 255.0;
+                if (r < 0.0) r = 0.0; else if (r > 1.0) r = 1.0;
+            }
+
+            if (temp <= 66.0) {
+                g = temp;
+                g = 99.4708025861 * log(g) - 161.1195681661;
+                g = g / 255.0;
+                if (g < 0.0) g = 0.0; else if (g > 1.0) g = 1.0;
+            } else {
+                g = temp - 60.0;
+                g = 288.1221695283 * pow(g, -0.0755148492);
+                g = g / 255.0;
+                if (g < 0.0) g = 0.0; else if (g > 1.0) g = 1.0;
+            }
+
+            if (temp >= 66.0) {
+                b = 1.0;
+            } else {
+                if (temp <= 19.0) {
+                    b = 0.0;
+                } else {
+                    b = temp - 10.0;
+                    b = 138.5177312231 * log(b) - 305.0447927307;
+                    b = b / 255.0;
+                    if (b < 0.0) b = 0.0; else if (b > 1.0) b = 1.0;
+                }
+            }
+
+            return vec3(r, g, b);
+        }
+
+        void main()	{
+            float K = 1000.0 + vUV.x * 10000.0;
+            vec3 krgb = KtoRGB(K);
+            gl_FragColor = vec4(krgb.xyz, 1.0);
+        }
+
+    </script>
+
+
+    <div id="three_render" style="width:800px;height:600px;float:left;"></div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "./node_modules/three/build/three.module.js"
+          }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+
+
+
+        function KtoRGB(K) {
+            let temp = K / 100.0;
+            let r = 1.0;
+            let g = 1.0;
+            let b = 1.0;
+
+            if (temp <= 66.0) {
+                r = 1.0;
+            } else {
+                r = temp - 60.0;
+                r = 329.698727446 * Math.pow(r, -0.1332047592);
+                r = r / 255.0;
+                if (r < 0.0) r = 0.0; else if (r > 1.0) r = 1.0;
+            }
+
+            if (temp <= 66.0) {
+                g = temp;
+                g = 99.4708025861 * Math.log(g) - 161.1195681661;
+                g = g / 255.0;
+                if (g < 0.0) g = 0.0; else if (g > 1.0) g = 1.0;
+            } else {
+                g = temp - 60.0;
+                g = 288.1221695283 * Math.pow(g, -0.0755148492);
+                g = g / 255.0;
+                if (g < 0.0) g = 0.0; else if (g > 1.0) g = 1.0;
+            }
+
+            if (temp >= 66.0) {
+                b = 1.0;
+            } else {
+                if (temp <= 19.0) {
+                    b = 0.0;
+                } else {
+                    b = temp - 10.0;
+                    b = 138.5177312231 * Math.log(b) - 305.0447927307;
+                    b = b / 255.0;
+                    if (b < 0.0) b = 0.0; else if (b > 1.0) b = 1.0;
+                }
+            }
+
+            console.log(K + "K -> rgb(" + (r * 255.0).toFixed(0) + "," + (g * 255.0).toFixed(0) + "," + (b * 255.0).toFixed(0));
+            return new THREE.Color(r, g, b);
+        }
+
+
+
+        //////////////////
+
+        for (let i = 0; i < 100; i++) {
+            KtoRGB(1000.0 + i * 100.0);
+        }
+
+
+        const eRender = document.getElementById("three_render");
+        eRender.getBoundingClientRect();
+        const rwidth = eRender.clientWidth;
+        const rheight = eRender.clientHeight;
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(rwidth, rheight);
+        renderer.setClearColor(0xaaaaaa, 1);
+
+        document.getElementById("three_render").appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        const camera = new THREE.OrthographicCamera(-1., 1., 1., -1., 0.1, 100);
+        camera.position.set(0, 0, 1);
+
+        scene.add(camera);
+
+        const geometry = new THREE.PlaneGeometry(1, 1, 20, 20);
+
+        let uniforms = {
+            time: { value: 0.0 },
+        };
+
+        const material = new THREE.ShaderMaterial({
+
+            uniforms: uniforms,
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent
+
+        });
+
+        material.wireframe = false;
+
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+
+        function render() {
+
+            renderer.render(scene, camera);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        animate();
+
+
+
+        function screenToNormalized(px, py) {
+
+            //rayLog(3, "mouse px : " + px + "," + py);
+
+            var cx = (px / renderer.domElement.clientWidth) * 2.0 - 1.0;
+            var cy = (1.0 - py / renderer.domElement.clientHeight) * 2.0 - 1.0;
+            //rayLog(3, "normalized (-1,1) coord : " + cx + "," + cy);
+
+            var nc = new THREE.Vector2(cx, cy);
+            return nc;
+        }
+
+        const raycaster = new THREE.Raycaster();
+
+        renderer.domElement.addEventListener('pointerup', (event) => {
+
+            let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+
+            raycaster.setFromCamera(normalizedPosition, camera);
+            let intersectedObjects = raycaster.intersectObjects([mesh], true);
+
+            if (intersectedObjects && intersectedObjects.length > 0) {
+
+                let pick_mesh = intersectedObjects[0].object;
+                if (pick_mesh) {
+
+                    let pt = intersectedObjects[0].point;
+                    let uv = intersectedObjects[0].uv;
+                    console.log("pick mesh point " + pt.x + "," + pt.y + "," + pt.z);
+                    console.log("pick mesh uv " + uv.x + "," + uv.y);
+
+                }
+
+            }
+
+        });
+
+
+    </script>
+
+
+</body>
+</html>
