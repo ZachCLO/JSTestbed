@@ -21,8 +21,8 @@
             vUV = uv;
             vUV.x = uv.x * 0.0022;//mod(uv.x, 1.0);
             vUV.y = uv.y * 0.0033;//mod(uv.y, 1.0);
-            vUV3 = uv;
             vUV2 = (grp_trf * vec3(uv, 1)).xy;
+            vUV3 = uv;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
 
@@ -165,6 +165,36 @@
             animate();
         }
 
+        function calcUVBounds(meshes) {
+
+            let minx = 1000000.0;
+            let miny = 1000000.0;
+            let maxx = -1000000.0;
+            let maxy = -1000000.0;
+
+            for (let mesh of meshes) {
+                for (let i = 0; i < mesh.geometry.attributes.uv.array.length; i++) {
+                    let p = mesh.geometry.attributes.uv.array[i];
+                    if (i % 2 == 0) {
+                        if (p < minx)
+                            minx = p;
+                        if (p > maxx)
+                            maxx = p;
+                    } else {
+                        if (p < miny)
+                            miny = p;
+                        if (p > maxy)
+                            maxy = p;
+                    }
+                }
+            }
+
+            console.log("calc uv bound " + minx + "," + miny + " - " + maxx + "," + maxy);
+            return new THREE.Vector4(minx, miny, maxx, maxy);
+        }
+
+
+
         const container = document.getElementById('container');
 
         scene = new THREE.Scene();
@@ -283,11 +313,10 @@
 
             requestAnimationFrame(animate);
 
-            material.uniforms['grp_selected'].value = grDragStart;
-
-            material.uniforms['grp_enable'].value = true;
-            material.uniforms['grp_trf'].value = grp_tr_mat;
-
+            for (let m of meshes) {
+                m.material.uniforms['grp_selected'].value = grDragStart;
+                m.material.uniforms['grp_trf'].value = grp_tr_mat;
+            }
 
             renderer.render(scene, camera);
 
@@ -322,8 +351,13 @@
                 root.add(grp);
             }
 
+
+            calcUVBounds(meshes);
+
+
             for (let i = 0; i < meshes.length; i++) {
-                meshes[i].material = material;
+                meshes[i].material = material.clone();
+                meshes[i].material.uniforms = THREE.UniformsUtils.clone(material.uniforms);
             }
 
 
@@ -404,6 +438,20 @@
         });
 
 
+
+        function setGrpEnableMeshses(pick_mesh) {
+            let m_idx = pick_mesh._index;
+            for (let m of meshes) {
+                if (m._index === m_idx) {
+                    m.material.uniforms['grp_enable'].value = true;
+                } else {
+                    m.material.uniforms['grp_enable'].value = false;
+                }
+            }
+        }
+
+
+
         container.addEventListener('pointerdown', (event) => {
 
             if (control.enabled) {
@@ -423,9 +471,9 @@
                         console.log("pick UV " + intersectedObjects[0].uv.x + "," + intersectedObjects[0].uv.y);
                         console.log("pick grp UV " + uv3.x + "," + uv3.y);
 
-
-
-
+                        //grp_ctr = new THREE.Vector2(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
+                        //setGrpEnableMeshses(pick_mesh);
+                        //animate();
                     }
 
                 }
@@ -453,6 +501,7 @@
                                 uv3.applyMatrix3(grp_tr_mat);
                                 console.log("pick grp UV " + uv3.x + "," + uv3.y);
 
+                                setGrpEnableMeshses(pick_mesh);
 
                                 grDragStart = true;
                             } else {
@@ -520,6 +569,7 @@
 
                         grPickUV = moveToUV;
 
+                        setGrpEnableMeshses(pick_mesh);
                     }
                 }
 
@@ -527,6 +577,16 @@
             }
 
         });
+
+
+
+        let tuv1 = new THREE.Vector3(-272.983420, -2000, 1.0);
+        tuv1.applyMatrix3(grp_tr_mat);
+        console.log("tuv1 = " + tuv1.x + "," + tuv1.y);
+        let tuv2 = new THREE.Vector3(1882.88200, -2000, 1.0);
+        tuv2.applyMatrix3(grp_tr_mat);
+        console.log("tuv2 = " + tuv2.x + "," + tuv2.y);
+
 
 
 

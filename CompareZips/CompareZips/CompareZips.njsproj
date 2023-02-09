@@ -76,6 +76,7 @@
     <Content Include="shader_ig_uv.html">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="shader_light.html" />
     <Content Include="shader_three.html">
       <SubType>Code</SubType>
     </Content>

@@ -13,7 +13,7 @@ class OldMoviePass extends Pass {
 
 		const shader = OldMovieShader;
 
-		this.uniforms = UniformsUtils.clone(shader.uniforms);
+		this.uniforms = THREE.UniformsUtils.clone(shader.uniforms);
 
 		this.material = new ShaderMaterial({
 
