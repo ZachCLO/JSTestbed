@@ -62,14 +62,33 @@
             for (int i = 0; i < MAX_LIGHTS; i++)
             {
                 vec3 lightColor = pow(lightData[i].color, vec3(GAMMA));
-                vec3 L = normalize(lightData[i].position);
+
+                vec3 L = vec3(0.0);
+                vec3 LD = vec3(0.0);
+                if (lightData[i].isDirectional)
+                {
+                    L = normalize(lightData[i].position);
+                }
+                else
+                {
+                    L = normalize(lightData[i].position - E);
+                    LD = lightData[i].position - E;
+                }
+
                 vec3 R = reflect(-L, N);
 
                 float dotNL = max(dot(N, L), 0.0);
                 float spec = pow(max(dot(E, R), 0.0), lightData[i].shininess);
 
-                diffuse += lightData[i].intensity * lightColor * dotNL;
-                specular += lightData[i].intensity * lightColor * spec;
+                float inten = lightData[i].intensity;
+                if (!lightData[i].isDirectional)
+                {
+                    float dsqr = max(dot(LD, LD), 0.00001);
+                    inten *= 1.0 / dsqr;
+                }
+
+                diffuse += inten * lightColor * dotNL;
+                specular += inten * lightColor * spec;
             }
 
             vec3 lightEff = (ambient + diffuse + specular);
@@ -224,9 +243,9 @@
             },
             {
                 isDirectional: false,
-                position: new THREE.Vector3(-1, 3, 1),
+                position: new THREE.Vector3(-1, 2, 1),
                 color: new THREE.Color(1, 0, 0),
-                intensity: 1.5,
+                intensity: 2.5,
                 shininess: 32.0,
             },
         ];
