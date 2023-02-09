@@ -13,23 +13,67 @@
 
         varying vec2 vUV;
         varying vec4 vColor;
+        varying vec3 posAtEye;
+        varying vec3 vNormal;
 
         void main()	{
             vColor = vec4(1, 1, 1, 1);
             vUV = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+            vec4 p = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * p;
+
+            posAtEye = p.xyz;
+            vNormal = normalize(normalMatrix * normal);
         }
 
     </script>
 
     <script id="fragmentShader" type="x-shader/x-fragment">
+        #define GAMMA 2.2
+        #define MAX_LIGHTS 2
+
+        struct Light {
+            bool isDirectional;
+            vec3 position;
+            vec3 color;
+            float intensity;
+            float shininess;
+        };
 
         varying vec2 vUV;
         varying vec4 vColor;
+        varying vec3 posAtEye;
+        varying vec3 vNormal;
+
+        uniform Light lightData[MAX_LIGHTS];
         uniform sampler2D sMainTex;
 
         void main()	{
-            gl_FragColor = vColor * texture2D( sMainTex, vUV );
+
+            vec3 ambient = vec3(0.2, 0.2, 0.2);
+            vec3 diffuse = vec3(0.0, 0.0, 0.0);
+            vec3 specular = vec3(0.0, 0.0, 0.0);
+
+            vec3 E = normalize(posAtEye);
+            vec3 N = normalize(vNormal);
+
+            // directional light
+            for (int i = 0; i < MAX_LIGHTS; i++)
+            {
+                vec3 lightColor = pow(lightData[i].color, vec3(GAMMA));
+                vec3 L = normalize(lightData[i].position);
+                vec3 R = reflect(-L, N);
+
+                float dotNL = max(dot(N, L), 0.0);
+                float spec = pow(max(dot(E, R), 0.0), lightData[i].shininess);
+
+                diffuse += lightData[i].intensity * lightColor * dotNL;
+                specular += lightData[i].intensity * lightColor * spec;
+            }
+
+            vec3 lightEff = (ambient + diffuse + specular);
+            gl_FragColor = vColor * vec4(lightEff.xyz, 1.0) * texture2D( sMainTex, vUV );
         }
 
     </script>
@@ -170,7 +214,27 @@
         scene.add(spotLightHelper3);
 
 
+        let lightData = [
+            {
+                isDirectional: true,
+                position: new THREE.Vector3(10, 10, 10),
+                color: new THREE.Color(.6, .7, .6),
+                intensity: 1.0,
+                shininess: 32.0,
+            },
+            {
+                isDirectional: false,
+                position: new THREE.Vector3(-1, 3, 1),
+                color: new THREE.Color(1, 0, 0),
+                intensity: 1.5,
+                shininess: 32.0,
+            },
+        ];
+
         let uniforms = {
+            lightData: {
+                value: lightData
+            },
             sMainTex: { value: null },
         };
 
@@ -196,9 +260,6 @@
 
         function animate() {
             requestAnimationFrame(animate);
-
-
-            wmat.resolution.set(1024, 600);
 
             render();
         }
