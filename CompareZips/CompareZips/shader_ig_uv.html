@@ -200,6 +200,8 @@
         scene = new THREE.Scene();
         const root = new THREE.Group();
         scene.add(root);
+        const rootUVP = new THREE.Group();
+        scene.add(rootUVP);
 
         const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
         scene.add(ambientLight);
@@ -209,7 +211,7 @@
         directionalLight.lookAt(0, 0, 0);
         scene.add(directionalLight);
 
-        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.1, 100);
+        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.05, 5000);
         camera.up.set(0, 1, 0);
         camera.position.set(0, -10, 10);
         camera.lookAt(0, 0, 0);
@@ -345,12 +347,39 @@
                     mats.push(m.material);
                 }
 
-                grp.remove(meshes[4]);
-                grp.remove(meshes[10]);
+                //grp.remove(meshes[4]);
+                //grp.remove(meshes[10]);
 
                 root.add(grp);
+
+                for (let i = 0; i < meshes.length; i++) {
+
+                    const uvpGeom = meshes[i].geometry.clone();
+                    const arrPos = uvpGeom.attributes.position.array;
+                    const arrUv = uvpGeom.attributes.uv.array;
+
+                    for (let i = 0; i < uvpGeom.attributes.position.count; i++) {
+                        arrPos[3 * i + 0] = arrUv[2 * i + 0];
+                        arrPos[3 * i + 1] = arrUv[2 * i + 1];
+                        arrPos[3 * i + 2] = 0;
+                    }
+
+                    uvpGeom.computeBoundingBox();
+                    uvpGeom.computeBoundingSphere();
+
+                    const mat2 = new THREE.MeshStandardMaterial({ color: 0xfffff, side: THREE.DoubleSide });
+                    let meshp = new THREE.Mesh(uvpGeom, mat2);
+
+                    meshp.material = material.clone();
+                    meshp.material.uniforms = THREE.UniformsUtils.clone(material.uniforms);
+
+                    rootUVP.add(meshp);
+                }
+
             }
 
+            root.visible = true;
+            rootUVP.visible = false;
 
             calcUVBounds(meshes);
 
@@ -432,6 +461,18 @@
                 for (let i = 0; i < meshes.length; i++) {
                     meshes[i].material = material2;
                 }
+                animate();
+            }
+            else if (event.key === 'm') {
+                root.visible = true;
+                rootUVP.visible = false;
+                setCameraFit(root);
+                animate();
+            }
+            else if (event.key === 'u') {
+                root.visible = false;
+                rootUVP.visible = true;
+                setCameraFit(rootUVP);
                 animate();
             }
 

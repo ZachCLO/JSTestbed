@@ -82,7 +82,8 @@
 
         const root = new THREE.Group();
         scene.add(root);
-
+        const rootUVPlan = new THREE.Group();
+        scene.add(rootUVPlan);
 
         function render() {
             renderer.render(scene, camera);
@@ -307,7 +308,7 @@
                         drcUrl,
                         function (geom) {
 
-                            const mat = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                            const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
                             if (idx === 18)
                                 mat.color = new THREE.Color(1, 0, 0);
                             let mesh = new THREE.Mesh(geom, mat);
@@ -371,6 +372,21 @@
                             root.add(mesh);
                             setCameraFit(root);
 
+                            // UV Plan mesh
+                            const uvpGeom = geom.clone();
+                            const arrPos = uvpGeom.attributes.position.array;
+                            const arrUv = uvpGeom.attributes.uv.array;
+
+                            for (let i = 0; i < uvpGeom.attributes.position.count; i++) {
+                                arrPos[3 * i + 0] = arrUv[2 * i + 0];
+                                arrPos[3 * i + 1] = arrUv[2 * i + 1];
+                                arrPos[3 * i + 2] = 0;
+                            }
+
+                            const mat2 = new THREE.MeshStandardMaterial({ color: 0xfffff });
+                            let meshp = new THREE.Mesh(uvpGeom, mat2);
+                            rootUVPlan.add(meshp);
+                            
                             console.log("resolve drc " + idx);
                         },
                         function (xhr) {
@@ -406,6 +422,7 @@
                 let pick_mesh = intersectedObjects[0].object;
                 if (pick_mesh) {
                     console.log("pick mesh index " + pick_mesh._index);
+                    console.log("pick mesh uv " + intersectedObjects[0].uv.x + "," + intersectedObjects[0].uv.y);
                     //pick_mesh.material.color = new THREE.Color(1, 0, 0);
                 }
 
@@ -415,6 +432,7 @@
 
         startBenchmarkDrc();
 
+        root.visible = false;
 
     </script>
 
