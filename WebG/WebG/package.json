@@ -1,0 +1,16 @@
+{
+  "name": "web-g",
+  "version": "0.0.0",
+  "description": "WebG",
+  "main": "server.js",
+  "author": {
+    "name": ""
+  },
+  "devDependencies": {},
+  "eslintConfig": {},
+  "dependencies": {
+    "@types/three": "^0.152.0",
+    "three": "^0.152.2",
+    "typescript": "^5.0.4"
+  }
+}

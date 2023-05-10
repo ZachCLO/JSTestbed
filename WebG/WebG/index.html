@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+    <div id="ccrender1" style="position:absolute;width:50%;height:50%;" ></div>
+
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "./node_modules/three/build/three.module.js",
+            "three/examples/jsm/controls/OrbitControls": "./node_modules/three/examples/jsm/controls/OrbitControls.js"
+          }
+        }
+    </script>
+    <script type="module">
+        import { Vector3, ConeGeometry } from 'three';
+        import { CCColor } from './dist/CCColor.js';
+        import { CCRendererThreeWebGL } from './dist/CCRendererThreeWebGL.js';
+        import { CCMaterialThree } from './dist/CCMaterialThree.js';
+
+        const tc = new CCColor(0.6, 0.4, 0.3);
+
+        console.log("color farray = " + tc.asFloatArray());
+        console.log("color iarray = " + tc.asFloatArray());
+        console.log("color hexstring = " + tc.asHexString());
+        console.log("color hexnum = " + tc.asHexNumber() + " / " + 0x99664c);
+
+        const dv = document.getElementById("ccrender1");
+        const renderer = new CCRendererThreeWebGL(dv, { clear: tc });
+
+        renderer.camera.setPositionAndLookAt(new Vector3(0, 10, -10), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
+
+        renderer.createMeshWithGeometry(new ConeGeometry(2, 4, 20, 20), new CCMaterialThree({ color: new CCColor(0.9, 0.1, 0.0) }));
+
+
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        function render() {
+            renderer.render();
+        }
+
+        animate();
+
+    </script>
+</body>
+</html>
