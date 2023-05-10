@@ -13,7 +13,8 @@ class CCRendererThreeWebGL extends CCRendererThree {
         this.renderer = new WebGLRenderer({ antialias: true });
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(rc.width, rc.height);
-        this.renderer.setClearColor(0x000000, 1);
+        if (this.clearColor)
+            this.renderer.setClearColor(this.clearColor.asHexNumber(), 1);
         div.appendChild(this.renderer.domElement);
     }
 

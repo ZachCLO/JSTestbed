@@ -8,6 +8,10 @@ class CCRenderer {
 
     constructor(div: HTMLElement, options?: any) {
         this.div_base = div;
+
+        if (options?.clear) {
+            this.clearColor = options.clear;
+        }
         
         window.addEventListener('resize', () => {
             this.onResize();

@@ -18,7 +18,7 @@
         }
     </script>
     <script type="module">
-        import { Vector3, ConeGeometry } from 'three';
+        import { Vector3, ConeGeometry, BoxGeometry } from 'three';
         import { CCColor } from './dist/CCColor.js';
         import { CCRendererThreeWebGL } from './dist/CCRendererThreeWebGL.js';
         import { CCMaterialThree } from './dist/CCMaterialThree.js';
@@ -35,8 +35,9 @@
 
         renderer.camera.setPositionAndLookAt(new Vector3(0, 10, -10), new Vector3(0, 0, 0), new Vector3(0, 1, 0));
 
-        renderer.createMeshWithGeometry(new ConeGeometry(2, 4, 20, 20), new CCMaterialThree({ color: new CCColor(0.9, 0.1, 0.0) }));
-
+        const cone = renderer.createMeshWithGeometry(new ConeGeometry(1, 2, 20, 20), new CCMaterialThree({ color: new CCColor(0.9, 0.1, 0.0) }));
+        const box = renderer.createMeshWithGeometry(new BoxGeometry(1, 2, 3, 2, 2), new CCMaterialThree({ color: new CCColor(0.3, 0.9, 0.2) }));
+        box.tMesh.position.set(-2, 0, 2);
 
 
 
