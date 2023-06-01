@@ -294,6 +294,10 @@
         control.update();
         control.enabled = true;
 
+        control.enableDamping = true;
+        control.dampingFactor = 0.1;
+        control.update();
+
         onWindowResize();
 
         window.addEventListener('resize', onWindowResize);
@@ -320,6 +324,8 @@
                 m.material.uniforms['grp_trf'].value = grp_tr_mat;
             }
 
+
+            control.update();
             renderer.render(scene, camera);
 
         }
@@ -473,6 +479,10 @@
                 root.visible = false;
                 rootUVP.visible = true;
                 setCameraFit(rootUVP);
+                animate();
+            }
+            else if (event.key === 'd') {
+                control.enableDamping = !control.enableDamping;
                 animate();
             }
 
