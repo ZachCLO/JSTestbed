@@ -19,7 +19,9 @@
 	<script type="module">
 
 		import * as THREE from 'three';
+		import { PlaneGeometry } from 'three';
 		import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { FullScreenQuad } from './node_modules/three/examples/jsm/postprocessing/Pass.js';
 
 
 		var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -71,10 +73,31 @@
 
 
 
+		// overlay frame render
+
+		const scene2 = new THREE.Scene();
+
+		const matFrame = new THREE.MeshBasicMaterial({ transparent: true });
+		const texFrame = new THREE.TextureLoader().load('../../data/Magnifier.png');
+		matFrame.map = texFrame;
+		const quad = new THREE.PlaneGeometry(1, 1, 1, 1);
+		const quadMesh = new THREE.Mesh(quad, matFrame);
+		scene2.add(quadMesh);
+
+		const ocam = new THREE.OrthographicCamera(-.5, .5, .5, -.5, 0.1, 10);
+		ocam.position.set(0, 0, 1);
 
 
 		function render() {
+			renderer.autoClear = true;
+			renderer.setViewport(0, 0, 1024, 768);
 			renderer.render(scene, camera);
+            renderer.autoClear = false;
+			renderer.setViewport(300, 300, 380, 380);
+			renderer.setScissor(300, 300, 380, 380);
+            renderer.setScissorTest(true);
+			renderer.render(scene2, ocam);
+            renderer.setScissorTest(false);
 		}
 
 		function animate() {
