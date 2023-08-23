@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        .renderWindow {
+            position: relative;
+            float: left;
+            width: 600px;
+            height: 400px;
+            background: transparent;
+            padding: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container" class="renderWindow"></div>
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./node_modules/three/build/three.module.js",
+                "three/addons/": "./node_modules/three/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+
+        let camera, scene, renderer;
+        let control;
+
+        const container = document.getElementById('container');
+        const rc = container.getBoundingClientRect();
+
+        scene = new THREE.Scene();
+        const root = new THREE.Group();
+        scene.add(root);
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        addPlane(root, 0, 0, -2, 0xff1354, 0.3);
+        addPlane(root, 0, 0, -1, 0x76ff4e, 0.8);
+        addPlane(root, 0, 0, -0, 0x1e08ff, 0.4);
+        addPlane(root, 0, 0, 1, 0x33eeff, 0.2);
+
+        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.05, 5000);
+        camera.up.set(0, 1, 0);
+        camera.position.set(0, -10, 10);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(rc.width, rc.height);
+        renderer.setClearColor(0xaaaaaa, 1);
+        container.appendChild(renderer.domElement);
+
+        control = new OrbitControls(camera, renderer.domElement);
+        control.target.set(0, 0, 0);
+        control.update();
+        control.enabled = true;
+
+        animate();
+
+        //
+
+        function addPlane(root, x, y, z, col, op) {
+
+            col = col ? col : 0xffffff;
+            op = op ? op : 0.5;
+
+            const geom = new THREE.PlaneGeometry(2, 2, 1, 1).translate(x, y, z);
+
+            const mat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, opacity: op, color: col });
+            mat.blending = THREE.CustomBlending;
+            mat.blendSrc = THREE.SrcAlphaFactor;
+            mat.blendDst = THREE.OneMinusSrcAlphaFactor;
+            mat.blendEquation = THREE.AddEquation;
+
+            const plane = new THREE.Mesh(geom, mat);
+
+            root.add(plane);
+
+            return plane;
+        }
+
+        //
+
+        function animate() {
+            requestAnimationFrame(animate);
+            control.update();
+            renderer.render(scene, camera);
+        }
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+</head>
+<body>
+
+    <div id="container" style="width:1024px;height:600px;"></div>
+
+
+    <script id="vertexShader" type="x-shader/x-vertex">
+
+        varying vec2 vUV;
+        varying vec2 vUV2;
+        varying vec2 vUV3;
+        uniform mat3 grp_trf;
+
+        void main()	{
+            vUV = uv;
+            vUV.x = uv.x * 0.0022;//mod(uv.x, 1.0);
+            vUV.y = uv.y * 0.0033;//mod(uv.y, 1.0);
+            vUV2 = (grp_trf * vec3(uv, 1)).xy;
+            vUV3 = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+
+        varying vec2 vUV;
+        varying vec2 vUV2;
+        varying vec2 vUV3;
+        uniform float time;
+        uniform sampler2D sMainTex;
+        uniform sampler2D sGraphicTex;
+        uniform bool grp_enable;
+        uniform bool grp_selected;
+
+        void main()	{
+
+            if (grp_enable) {
+                int edg = 0;
+                if (grp_selected) {
+                    if (((vUV2.x > 0.0 && vUV2.x < 0.02) || (vUV2.x > 0.98 && vUV2.x < 1.00)) && (vUV2.y > 0.0 && vUV2.y < 1.0))
+                        edg++;
+                    if (((vUV2.y > 0.0 && vUV2.y < 0.02) || (vUV2.y > 0.98 && vUV2.y < 1.00)) && (vUV2.x > 0.0 && vUV2.x < 1.0))
+                        edg++;
+                }
+
+                if (edg > 0) {
+                    gl_FragColor = vec4(1, 0, 0, 1);
+                } else {
+                    float ga = texture2D( sGraphicTex, vUV2 ).a;
+                    float gb = (grp_selected && (vUV2.x > 0.0 && vUV2.x < 1.0 && vUV2.y > 0.0 && vUV2.y < 1.0)) ? 0.7 : 1.0;
+                    gl_FragColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
+                }
+            }
+            else {
+                //gl_FragColor = texture2D( sMainTex, vUV );
+                //if (vUV3.y < -2000.0)
+                //    gl_FragColor = vec4(1, 0, 0, 1);
+                //else
+                    gl_FragColor = texture2D( sMainTex, vUV );
+            }
+        }
+
+    </script>
+
+
+    <script id="vertexShader2" type="x-shader/x-vertex">
+
+        varying vec2 vUV;
+        varying vec3 vColor;
+
+        void main()	{
+            vUV = uv;
+            vColor = vec3(uv.xy, 0);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+
+    </script>
+
+    <script id="fragmentShader2" type="x-shader/x-fragment">
+
+        varying vec2 vUV;
+        varying vec3 vColor;
+        uniform sampler2D sMainTex;
+        uniform sampler2D sGraphicTex;
+
+        void main()	{
+
+            float xv = (vColor.x + 5000.0) / 10000.0;
+            float yv = (vColor.y + 5000.0) / 10000.0;
+
+            gl_FragColor = vec4(xv, yv, 0.0, 1.0);
+        }
+
+    </script>
+
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./node_modules/three/build/three.module.js",
+                "three/addons/": "./node_modules/three/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from 'three';
+        import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+
+        let camera, scene, renderer;
+
+        let control;
+
+        let uniforms;
+
+        let meshes = [];
+        let mats = [];
+
+
+        function screenToNormalized(px, py) {
+
+            //rayLog(3, "mouse px : " + px + "," + py);
+
+            var cx = (px / renderer.domElement.clientWidth) * 2.0 - 1.0;
+            var cy = (1.0 - py / renderer.domElement.clientHeight) * 2.0 - 1.0;
+            //rayLog(3, "normalized (-1,1) coord : " + cx + "," + cy);
+
+            var nc = new THREE.Vector2(cx, cy);
+            return nc;
+        }
+
+        function setCameraFit(obj) {
+
+            let bbox = new THREE.Box3();
+            bbox.expandByObject(obj);
+            let sz = new THREE.Vector3();
+            bbox.getSize(sz);
+
+            let as = Math.max(sz.x, sz.y);
+            let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
+
+            console.log("camera dist fit = " + dist);
+
+            let ctr = new THREE.Vector3();
+            bbox.getCenter(ctr);
+
+            control.target.set(ctr.x, ctr.y, ctr.z);
+            control.update();
+
+            camera.position.set(ctr.x, ctr.y, ctr.z + dist);
+            camera.lookAt(ctr.x, ctr.y, ctr.z);
+
+            animate();
+        }
+
+        function calcUVBounds(meshes) {
+
+            let minx = 1000000.0;
+            let miny = 1000000.0;
+            let maxx = -1000000.0;
+            let maxy = -1000000.0;
+
+            for (let mesh of meshes) {
+                for (let i = 0; i < mesh.geometry.attributes.uv.array.length; i++) {
+                    let p = mesh.geometry.attributes.uv.array[i];
+                    if (i % 2 == 0) {
+                        if (p < minx)
+                            minx = p;
+                        if (p > maxx)
+                            maxx = p;
+                    } else {
+                        if (p < miny)
+                            miny = p;
+                        if (p > maxy)
+                            maxy = p;
+                    }
+                }
+            }
+
+            console.log("calc uv bound " + minx + "," + miny + " - " + maxx + "," + maxy);
+            return new THREE.Vector4(minx, miny, maxx, maxy);
+        }
+
+
+
+        const container = document.getElementById('container');
+
+        scene = new THREE.Scene();
+        const root = new THREE.Group();
+        scene.add(root);
+        const rootUVP = new THREE.Group();
+        scene.add(rootUVP);
+
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(-10, -10, 10);
+        directionalLight.lookAt(0, 0, 0);
+        scene.add(directionalLight);
+
+        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.05, 5000);
+        camera.up.set(0, 1, 0);
+        camera.position.set(0, -10, 10);
+        camera.lookAt(0, 0, 0);
+
+        const cameraLight = new THREE.PointLight(0xffcccc, 1);
+        camera.add(cameraLight);
+
+
+
+        // init graphics info
+        let grp_ctr = new THREE.Vector2(20, -1958);
+        let grp_w = 200;
+        let grp_h = 360;
+        let grp_rot = 0.0;
+
+        let lbDown = false;
+        let grDragStart = false;
+        let grPickUV = new THREE.Vector2(0, 0);
+        let grPickOffset = new THREE.Vector2(0, 0);
+
+        let rotPerPixel = 1.0 / 180.0 * Math.PI;
+
+        let grp_tr_mat = new THREE.Matrix3();
+
+        let drag_mode_rot = false;
+
+
+        function updateGraphicTexTransform() {
+
+            grp_tr_mat = new THREE.Matrix3().identity();
+            grp_tr_mat.translate(-0.5, -0.5);
+            grp_tr_mat.scale(grp_w, grp_h);
+            grp_tr_mat.rotate(grp_rot);
+            grp_tr_mat.translate(grp_ctr.x, grp_ctr.y);
+
+            grp_tr_mat.invert();
+
+        }
+
+        const main_tex = new THREE.TextureLoader().load('../../data/drc/checked.jpg');
+        main_tex.wrapS = THREE.RepeatWrapping;
+        main_tex.wrapT = THREE.RepeatWrapping;
+        main_tex.repeat = new THREE.Vector2(0.0022, 0.0033);
+        const gr_tex = new THREE.TextureLoader().load('../../data/drc/ralph-lauren.png');
+        //gr_tex.wrapS = THREE.RepeatWrapping;
+        //gr_tex.wrapT = THREE.RepeatWrapping;
+        //gr_tex.repeat = new THREE.Vector2(0.0022, 0.0033);
+        gr_tex.flipY = false;
+
+        uniforms = {
+            //time: { value: 1.0 },
+            grp_trf: { value: grp_tr_mat },
+            sMainTex: { value: main_tex },
+            sGraphicTex: { value: gr_tex },
+            grp_enable: { value: true },
+            grp_selected: { value: false }
+        };
+
+        const material = new THREE.ShaderMaterial({
+
+            uniforms: uniforms,
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent,
+            side: THREE.DoubleSide
+
+        });
+
+        const material2 = new THREE.MeshLambertMaterial({
+            side: THREE.DoubleSide,
+            map: main_tex,
+        });
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(1024, 600);
+        renderer.setClearColor(0xaaaaaa, 1);
+        container.appendChild(renderer.domElement);
+
+        control = new OrbitControls(camera, renderer.domElement);
+        control.target.set(0, 0, 0);
+        control.update();
+        control.enabled = true;
+
+        control.enableDamping = true;
+        control.dampingFactor = 0.1;
+        control.update();
+
+        onWindowResize();
+
+        window.addEventListener('resize', onWindowResize);
+
+        animate();
+
+        updateGraphicTexTransform();
+
+
+        function onWindowResize() {
+
+            //renderer.setSize(window.innerWidth, window.innerHeight);
+
+        }
+
+        //
+
+        function animate() {
+
+            requestAnimationFrame(animate);
+
+            for (let m of meshes) {
+                m.material.uniforms['grp_selected'].value = grDragStart;
+                m.material.uniforms['grp_trf'].value = grp_tr_mat;
+            }
+
+
+            control.update();
+            renderer.render(scene, camera);
+
+        }
+
+        const gloader = new GLTFLoader().setPath("../../data/gltf/zach_clo/");
+        gloader.load("clo_sample.gltf", function (gltf) {
+            //const gloader = new GLTFLoader().setPath("../../data/gltf/regular/");
+            //gloader.load("regular.gltf", function (gltf) {
+
+            let grp = null;
+            for (let obj of gltf.scene.children[0].children) {
+                if (obj.isGroup) {
+                    grp = obj;
+                    break;
+                }
+            }
+
+            if (grp) {
+
+                let idx = 0;
+                for (let m of grp.children) {
+                    m._index = idx;
+                    idx++;
+                    meshes.push(m);
+                    mats.push(m.material);
+                }
+
+                //grp.remove(meshes[4]);
+                //grp.remove(meshes[10]);
+
+                root.add(grp);
+
+                for (let i = 0; i < meshes.length; i++) {
+
+                    const uvpGeom = meshes[i].geometry.clone();
+                    const arrPos = uvpGeom.attributes.position.array;
+                    const arrUv = uvpGeom.attributes.uv.array;
+
+                    for (let i = 0; i < uvpGeom.attributes.position.count; i++) {
+                        arrPos[3 * i + 0] = arrUv[2 * i + 0];
+                        arrPos[3 * i + 1] = arrUv[2 * i + 1];
+                        arrPos[3 * i + 2] = 0;
+                    }
+
+                    uvpGeom.computeBoundingBox();
+                    uvpGeom.computeBoundingSphere();
+
+                    const mat2 = new THREE.MeshStandardMaterial({ color: 0xfffff, side: THREE.DoubleSide });
+                    let meshp = new THREE.Mesh(uvpGeom, mat2);
+
+                    meshp.material = material.clone();
+                    meshp.material.uniforms = THREE.UniformsUtils.clone(material.uniforms);
+
+                    rootUVP.add(meshp);
+                }
+
+            }
+
+            root.visible = true;
+            rootUVP.visible = false;
+
+            calcUVBounds(meshes);
+
+
+            for (let i = 0; i < meshes.length; i++) {
+                meshes[i].material = material.clone();
+                meshes[i].material.uniforms = THREE.UniformsUtils.clone(material.uniforms);
+            }
+
+
+            setCameraFit(root);
+            animate();
+        });
+
+
+        const raycaster = new THREE.Raycaster();
+
+        /*
+        renderer.domElement.addEventListener('pointerup', (event) => {
+
+            let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+
+            raycaster.setFromCamera(normalizedPosition, camera);
+            let intersectedObjects = raycaster.intersectObjects(root.children, true);
+
+            if (intersectedObjects && intersectedObjects.length > 0) {
+
+                let pick_mesh = intersectedObjects[0].object;
+                if (pick_mesh) {
+
+                    let pt = intersectedObjects[0].point;
+                    let uv = intersectedObjects[0].uv;
+                    console.log("pick mesh idx " + pick_mesh._index);
+                    console.log("pick mesh point " + pt.x + "," + pt.y + "," + pt.z);
+                    console.log("pick mesh uv " + uv.x + "," + uv.y);
+
+                }
+
+            }
+
+        });
+        */
+
+
+        window.addEventListener('keyup', (event) => {
+
+            if (lbDown || grDragStart)
+                return;
+
+            if (event.key === '1') {
+                control.enabled = true;
+                drag_mode_rot = false;
+                container.style.cursor = "initial";
+            } if (event.key === '2') {
+                control.enabled = false;
+                drag_mode_rot = false;
+                container.style.cursor = "move";
+            } if (event.key === '3') {
+                control.enabled = false;
+                drag_mode_rot = true;
+                container.style.cursor = "grab";
+            } if (event.key === 'w') {
+                material.wireframe = !material.wireframe;
+            }
+
+            if (event.key === 'q') {
+                for (let i = 0; i < meshes.length; i++) {
+                    meshes[i].material = mats[i];
+                }
+                animate();
+            }
+            else if (event.key === 'a') {
+                for (let i = 0; i < meshes.length; i++) {
+                    meshes[i].material = material;
+                }
+                animate();
+            }
+            else if (event.key === 'z') {
+                for (let i = 0; i < meshes.length; i++) {
+                    meshes[i].material = material2;
+                }
+                animate();
+            }
+            else if (event.key === 'm') {
+                root.visible = true;
+                rootUVP.visible = false;
+                setCameraFit(root);
+                animate();
+            }
+            else if (event.key === 'u') {
+                root.visible = false;
+                rootUVP.visible = true;
+                setCameraFit(rootUVP);
+                animate();
+            }
+            else if (event.key === 'd') {
+                control.enableDamping = !control.enableDamping;
+                animate();
+            }
+
+        });
+
+
+
+        function setGrpEnableMeshses(pick_mesh) {
+            let m_idx = pick_mesh._index;
+            for (let m of meshes) {
+                if (m._index === m_idx) {
+                    m.material.uniforms['grp_enable'].value = true;
+                } else {
+                    m.material.uniforms['grp_enable'].value = false;
+                }
+            }
+        }
+
+
+
+        container.addEventListener('pointerdown', (event) => {
+
+            if (control.enabled) {
+
+                // pick mesh point
+                let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+                raycaster.setFromCamera(normalizedPosition, camera);
+                let intersectedObjects = raycaster.intersectObjects(meshes, true);
+                if (intersectedObjects && intersectedObjects.length > 0) {
+
+                    let pick_mesh = intersectedObjects[0].object;
+                    if (pick_mesh) {
+
+                        let uv3 = new THREE.Vector3(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y, 1.0);
+                        uv3.applyMatrix3(grp_tr_mat);
+
+                        console.log("pick UV " + intersectedObjects[0].uv.x + "," + intersectedObjects[0].uv.y);
+                        console.log("pick grp UV " + uv3.x + "," + uv3.y);
+
+                        //grp_ctr = new THREE.Vector2(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
+                        //setGrpEnableMeshses(pick_mesh);
+                        //animate();
+                    }
+
+                }
+
+                return;
+            }
+
+            if (event.button === 0) {
+                if (!lbDown) {
+
+                    // pick mesh point
+                    let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+                    raycaster.setFromCamera(normalizedPosition, camera);
+                    let intersectedObjects = raycaster.intersectObjects(meshes, true);
+                    if (intersectedObjects && intersectedObjects.length > 0) {
+
+                        let pick_mesh = intersectedObjects[0].object;
+                        if (pick_mesh) {
+                            grPickUV.set(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
+                            if (Math.abs(grPickUV.x - grp_ctr.x) < (grp_w * 0.5) && Math.abs(grPickUV.y - grp_ctr.y) < (grp_h * 0.5)) {
+                                grPickOffset = grPickUV.clone().sub(grp_ctr);
+                                console.log("picked graphic with offset " + grPickOffset.x + "," + grPickOffset.y);
+
+                                let uv3 = new THREE.Vector3(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y, 1.0);
+                                uv3.applyMatrix3(grp_tr_mat);
+                                console.log("pick grp UV " + uv3.x + "," + uv3.y);
+
+                                setGrpEnableMeshses(pick_mesh);
+
+                                grDragStart = true;
+                            } else {
+                                console.log("picked out of graphic " + grPickUV.x + "," + grPickUV.y + " (center = " + grp_ctr.x + "," + grp_ctr.y + ")");
+                            }
+                        }
+
+                    }
+
+                    lbDown = true;
+                    container.setPointerCapture(event.pointerId);
+                }
+            }
+
+        });
+
+        container.addEventListener('pointerup', (event) => {
+
+            if (control.enabled)
+                return;
+
+            if (event.button === 0) {
+                if (lbDown) {
+
+                    if (grDragStart) {
+                        grDragStart = false;
+                    }
+
+                    lbDown = false;
+                    container.releasePointerCapture(event.pointerId);
+                }
+            }
+
+        });
+
+        container.addEventListener('pointermove', (event) => {
+
+            if (control.enabled)
+                return;
+
+            if (lbDown && grDragStart) {
+
+                // drag move to mesh point
+                let normalizedPosition = screenToNormalized(event.offsetX, event.offsetY);
+                raycaster.setFromCamera(normalizedPosition, camera);
+                let intersectedObjects = raycaster.intersectObjects(meshes, true);
+                if (intersectedObjects && intersectedObjects.length > 0) {
+
+                    let pick_mesh = intersectedObjects[0].object;
+                    if (pick_mesh) {
+                        grPickUV.set(intersectedObjects[0].uv.x, intersectedObjects[0].uv.y);
+                        let moveToUV = intersectedObjects[0].uv.clone();
+
+                        if (drag_mode_rot) {
+                            let sa = grPickUV.clone().sub(grp_ctr).angle();
+                            let ea = moveToUV.clone().sub(grp_ctr).angle();
+                            let delta_angle = ea - sa;
+
+                            grp_rot -= delta_angle;
+                            updateGraphicTexTransform();
+                        } else {
+                            grp_ctr = moveToUV.clone().sub(grPickOffset);
+                            updateGraphicTexTransform();
+                        }
+
+                        grPickUV = moveToUV;
+
+                        setGrpEnableMeshses(pick_mesh);
+                    }
+                }
+
+
+            }
+
+        });
+
+
+
+        let tuv1 = new THREE.Vector3(-272.983420, -2000, 1.0);
+        tuv1.applyMatrix3(grp_tr_mat);
+        console.log("tuv1 = " + tuv1.x + "," + tuv1.y);
+        let tuv2 = new THREE.Vector3(1882.88200, -2000, 1.0);
+        tuv2.applyMatrix3(grp_tr_mat);
+        console.log("tuv2 = " + tuv2.x + "," + tuv2.y);
+
+
+
+
+    </script>
+
+</body>
+</html>

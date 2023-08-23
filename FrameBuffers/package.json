@@ -1,0 +1,16 @@
+{
+  "name": "frame-buffers",
+  "version": "0.0.0",
+  "description": "FrameBuffers",
+  "main": "server.js",
+  "author": {
+    "name": ""
+  },
+  "devDependencies": {
+    "eslint": "^8.21.0"
+  },
+  "eslintConfig": {},
+  "dependencies": {
+    "three": "^0.155.0"
+  }
+}
