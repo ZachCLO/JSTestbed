@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        .imgWindow {
+            position: relative;
+            float: left;
+            width: 400px;
+            height: 400px;
+            background: transparent;
+            padding: 4px;
+        }
+    </style>
+</head>
+<body>
+    <p>
+        <button id="btn_load">Load Image</button>
+        <input id="load_file_img" type="file" value="" accept=".png,.jpg" hidden />
+    </p>
+    <p>
+        <img id="img_src" class="imgWindow"></img>
+        <img id="img_dst" class="imgWindow"></img>
+    </p>
+    <script type="module">
+
+
+        console.log("RGB2HSL" + RGB2HSL(255, 255, 255));
+        console.log("HSL2RGB" + HSL2RGB(180, 1.0, 0.25));
+
+
+
+        const imgSrc = document.getElementById("img_src");
+        const imgDst = document.getElementById("img_dst");
+
+        const loadSrcImg = function (event) {
+
+            const image = event.currentTarget;
+            const iw = image.naturalWidth;
+            const ih = image.naturalHeight;
+            console.log("image size " + image.naturalWidth + "," + image.naturalHeight);
+
+            const cv = document.createElement("canvas");
+            cv.width = iw;
+            cv.height = ih;
+            const ctx = cv.getContext('2d');
+            ctx.drawImage(image, 0, 0);
+            const cImageData = ctx.getImageData(0, 0, iw, ih);
+            const pixels = cImageData.data;
+
+            Desaturate(pixels, iw, ih);
+
+            ctx.putImageData(cImageData, 0, 0);
+
+            const base64 = cv.toDataURL("image/png");
+            imgDst.src = base64;
+        }
+
+        const load_file = document.getElementById("load_file_img");
+        load_file.onchange = function (event) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                imgSrc.src = reader.result;
+                imgSrc.onload = loadSrcImg;
+            };
+
+            reader.readAsDataURL(event.target.files[0]);
+            event.target.value = "";
+        }
+
+        document.getElementById("btn_load").addEventListener("click", (event) => {
+            load_file.click();
+        });
+
+        function RGB2HSL(r, g, b)
+        {
+            r = r / 255;
+            g = g / 255;
+            b = b / 255;
+
+            const themin = Math.min(r, Math.min(g, b));
+            const themax = Math.max(r, Math.max(g, b));
+            const delta = themax - themin;
+
+            let h = 0;
+            let l = (themin + themax) / 2;
+            let s = 0;
+
+            if (l > 0 && l < 1)
+                s = delta / (l < 0.5 ? (2 * l) : (2 - 2 * l));
+
+            if (delta > 0) {
+                if (themax == r && themax != g)
+                    h += (g - b) / delta;
+                if (themax == g && themax != b)
+                    h += (2 + (b - r) / delta);
+                if (themax == b && themax != r)
+                    h += (4 + (r - g) / delta);
+                h *= 60;
+            }
+
+            return [h, s, l];
+        }
+
+        function HSL2RGB(h, s, l) {
+
+            let r = 0;
+            let g = 0;
+            let b = 0;
+
+            while (h < 0)
+                h += 360;
+            while (h > 360)
+                h -= 360;
+
+            if (h < 120) {
+                r = ((120 - h) / 60.0);
+                g = (h / 60.0);
+                b = 0;
+            } else if (h < 240) {
+                r = 0;
+                g = ((240 - h) / 60.0);
+                b = ((h - 120) / 60.0);
+            } else {
+                r = ((h - 240) / 60.0);
+                g = 0;
+                b = ((360 - h) / 60.0);
+            }
+            r = Math.min(r, 1);
+            g = Math.min(g, 1);
+            b = Math.min(b, 1);
+
+            r = (2 * s * r + (1 - s));
+            g = (2 * s * g + (1 - s));
+            b = (2 * s * b + (1 - s));
+
+            if (l < 0.5) {
+                r = (l * r);
+                g = (l * g);
+                b = (l * b);
+            } else {
+                r = ((1 - l) * r + 2 * l - 1);
+                g = ((1 - l) * g + 2 * l - 1);
+                b = ((1 - l) * b + 2 * l - 1);
+            }
+
+            r = Math.floor(r * 255);
+            g = Math.floor(g * 255);
+            b = Math.floor(b * 255);
+
+            return [r, g, b];
+        }
+
+        function HistogramEqualization(pixels, iw, ih) {
+
+            const histogram = new Int32Array(256);
+            const cumhist = new Int32Array(256);
+
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+                    histogram[pixels[4 * pos + 0]]++;
+                }
+            }
+
+            cumhist[0] = histogram[0];
+            for (let i = 1; i < 256; i++) {
+                cumhist[i] = cumhist[i - 1] + histogram[i];
+            }
+
+            const v = 255.0 / cumhist[255];
+
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+                    const val = Math.floor(v * cumhist[pixels[4 * pos + 0]]);
+                    if (val < 0)
+                        val = 0;
+                    else if (val > 255)
+                        val = 255;
+
+                    pixels[4 * pos + 0] = val;
+                    pixels[4 * pos + 1] = val;
+                    pixels[4 * pos + 2] = val;
+                }
+            }
+
+        }
+
+        function SetDynamicRangeNGamma(pixels, iw, ih, low, high, gamma) {
+
+            const weight = (high - low) / 255.0;
+
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+
+                    const fdata = Math.floor((pixels[4 * pos + 0] - low) * weight + low);
+                    const bdata = Math.floor(255.0 * Math.pow(fdata / 255.0, 1.0 / gamma));
+
+                    pixels[4 * pos + 0] = bdata;
+                    pixels[4 * pos + 1] = bdata;
+                    pixels[4 * pos + 2] = bdata;
+                }
+            }
+
+        }
+
+        function Desaturate(pixels, iw, ih, intensity = 0, adj_gray_coeff = 1) {
+
+            const LOW_LEVEL_DEFAULT = 150;
+            const HIGH_LEVEL_DEFAULT = 255;
+            const GAMMA_DEFAULT = 100;
+
+            intensity = intensity + 50; // 사용자 입장에서는 (-50,50) 이고, 알고리즘 입장에서는 (0, 100)이므로 +50을 보정 23 May 2013 by Joshua
+            adj_gray_coeff = (-1) * adj_gray_coeff; // 사용자 입장에서 brightness level이므로, algorithm은 gray_level로 판단하기 위해 반전시킴
+
+	        const levelLow = intensity * (-1) + LOW_LEVEL_DEFAULT;
+            const levelHigh = HIGH_LEVEL_DEFAULT;
+            const fgamma = ((intensity * (-0.5) + GAMMA_DEFAULT) / 10);
+
+            const hsls = new Float32Array(iw * ih * 3);
+
+            // RGB to HSL with S = 0 (Desaturate)
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+                    const hsl = RGB2HSL(pixels[4 * pos + 0], pixels[4 * pos + 1], pixels[4 * pos + 2]);
+
+                    hsls[3 * pos + 0] = hsl[0];
+                    hsls[3 * pos + 1] = 0;
+                    hsls[3 * pos + 2] = hsl[2];
+                }
+            }
+
+            // HSL to RGB
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+                    const rgb = HSL2RGB(hsls[3 * pos + 0], hsls[3 * pos + 1], hsls[3 * pos + 2]);
+
+                    pixels[4 * pos + 0] = rgb[0];
+                    pixels[4 * pos + 1] = rgb[1];
+                    pixels[4 * pos + 2] = rgb[2];
+                }
+            }
+
+            // Grayscale
+            for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                    const pos = y * iw + x;
+                    const sum = (pixels[4 * pos + 0] + pixels[4 * pos + 1] + pixels[4 * pos + 2]);
+                    const avg = Math.floor(sum / 3.0);
+
+                    pixels[4 * pos + 0] = avg;
+                    pixels[4 * pos + 1] = avg;
+                    pixels[4 * pos + 2] = avg;
+                }
+            }
+
+            // Histogram equalization
+            HistogramEqualization(pixels, iw, ih);
+
+            // DynamicRangeNGamma
+            SetDynamicRangeNGamma(pixels, iw, ih, levelLow, levelHigh, fgamma);
+
+        }
+
+
+
+
+    </script>
+
+</body>
+</html>
