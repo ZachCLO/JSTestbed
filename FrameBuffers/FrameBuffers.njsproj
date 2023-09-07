@@ -30,6 +30,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="alpha_planes.html" />
+    <Content Include="DepthRenderPass.js" />
     <Content Include="img_desaturate.html" />
     <Content Include="package.json" />
     <Content Include="README.md" />

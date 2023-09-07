@@ -17,6 +17,7 @@
 </head>
 <body>
     <div id="container" class="renderWindow"></div>
+    <div id="container2" class="renderWindow"></div>
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
@@ -33,13 +34,22 @@
     <script type="module">
 
         import * as THREE from 'three';
+        import { RGBAFormat, ByteType, FloatType } from 'three';
         import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { EffectComposer } from './node_modules/three/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from './node_modules/three/examples/jsm/postprocessing/RenderPass.js';
+        import { SavePass } from './node_modules/three/examples/jsm/postprocessing/SavePass.js';
+        import { TexturePass } from './node_modules/three/examples/jsm/postprocessing/TexturePass.js';
+        import { DepthRenderPass } from './DepthRenderPass.js';
 
-        let camera, scene, renderer;
+        let camera, scene, renderer, renderer2;
         let control;
 
         const container = document.getElementById('container');
         const rc = container.getBoundingClientRect();
+
+        const container2 = document.getElementById('container2');
+        const rc2 = container2.getBoundingClientRect();
 
         scene = new THREE.Scene();
         const root = new THREE.Group();
@@ -56,7 +66,7 @@
         addPlane(root, 0, 0, 2, 0xff23ff, 0.5);
         addPlane(root, 0, 0, 3, 0xabcdac, 0.5);
 
-        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 0.05, 5000);
+        camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 1, 20);
         camera.up.set(0, 1, 0);
         camera.position.set(0, -10, 10);
         camera.lookAt(0, 0, 0);
@@ -71,13 +81,46 @@
         control.update();
         control.enabled = true;
 
+
+
+        renderer2 = new THREE.WebGLRenderer();
+        renderer2.setSize(rc2.width, rc2.height);
+        renderer2.setClearColor(0x000000, 1);
+        container2.appendChild(renderer2.domElement);
+
+
+        const rt1 = createRenderTarget(rc2.width, rc2.height);
+
+        const composer = new EffectComposer(renderer2, new THREE.WebGLRenderTarget(rc2.width, rc2.height, { depthBuffer: true }));
+        composer.setSize(rc2.width, rc2.height);
+        composer.setPixelRatio(window.devicePixelRatio);
+
+        const defPass = new RenderPass(scene, camera);
+        composer.addPass(defPass);
+
+        const finalRender = new EffectComposer(renderer2, new THREE.WebGLRenderTarget(rc2.width, rc2.height, { depthBuffer: true }));
+
+        composer.renderTarget2.depthTexture = new THREE.DepthTexture(rc2.width, rc2.height);
+
+        const renderPass = new TexturePass(composer.renderTarget2.texture);
+        //composer.addPass(renderPass);
+        const depthRenderPass = new DepthRenderPass(composer.renderTarget2.depthTexture);
+        composer.addPass(depthRenderPass);
+
+
         animate();
+
 
         //
 
-        function createRenderTarget(color_format, data_type) {
-            color_format = color_format ? color_format : 
-            const rt = new THREE.WebGLRenderTarget(rc.width, rc.height, { format: color_format, type: data_type });
+        function createRenderTarget(w, h, color_format, data_type) {
+            color_format = color_format ? color_format : RGBAFormat;
+            data_type = data_type ? data_type : ByteType;
+            const rt = new THREE.WebGLRenderTarget(w, h, { format: color_format, type: data_type });
+            rt.depthTexture = new THREE.DepthTexture(w, h);
+            rt.depthTexture.needsUpdate = true;
+
+            return rt;
         }
 
         function addPlane(root, x, y, z, col, op) {
@@ -106,6 +149,12 @@
             requestAnimationFrame(animate);
             control.update();
             renderer.render(scene, camera);
+
+            depthRenderPass.setCameraDepth(camera);
+
+            composer.render();
+
+            finalRender.render();
         }
 
     </script>
