@@ -18,6 +18,7 @@
 <body>
     <div id="container" class="renderWindow"></div>
     <div id="container2" class="renderWindow"></div>
+
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
     <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
@@ -58,13 +59,18 @@
         const ambientLight = new THREE.AmbientLight(0xcccccc, 0.4);
         scene.add(ambientLight);
 
-        addPlane(root, 0, 0, -3, 0xfeea2b, 0.3);
+        const root_op = new THREE.Group();
+        const root_tp = new THREE.Group();
+        root.add(root_op);
+        root.add(root_tp);
+
         addPlane(root, 0, 0, -2, 0xff1323, 0.3);
-        addPlane(root, 0, 0, -1, 0x2eff4e, 1.0);
         addPlane(root, 0, 0, -0, 0x1e08ff, 0.4);
+        addPlane(root, 0, 0, -1, 0x2eff4e, 1.0);
+        addPlane(root, 0, 0, 3, 0xabcdac, 0.5);
+        addPlane(root, 0, 0, -3, 0xfeea2b, 0.3);
         addPlane(root, 0, 0, 1, 0x11eeff, 1.0);
         addPlane(root, 0, 0, 2, 0xff23ff, 0.5);
-        addPlane(root, 0, 0, 3, 0xabcdac, 0.5);
 
         camera = new THREE.PerspectiveCamera(60, 1024.0 / 600.0, 1, 20);
         camera.up.set(0, 1, 0);
@@ -95,17 +101,19 @@
         composer.setSize(rc2.width, rc2.height);
         composer.setPixelRatio(window.devicePixelRatio);
 
-        const defPass = new RenderPass(scene, camera);
+        const defPass = new RenderPass(root_op, camera);
         composer.addPass(defPass);
+
+        defPass.renderTarget2.depthTexture = new THREE.DepthTexture(rc2.width, rc2.height);
+
+        //const renderPass = new TexturePass(composer.renderTarget2.texture);
+        //composer.addPass(renderPass);
+        const depthRenderPass = new DepthRenderPass(defPass.renderTarget2.depthTexture);
+        composer.addPass(depthRenderPass);
 
         const finalRender = new EffectComposer(renderer2, new THREE.WebGLRenderTarget(rc2.width, rc2.height, { depthBuffer: true }));
 
-        composer.renderTarget2.depthTexture = new THREE.DepthTexture(rc2.width, rc2.height);
 
-        const renderPass = new TexturePass(composer.renderTarget2.texture);
-        //composer.addPass(renderPass);
-        const depthRenderPass = new DepthRenderPass(composer.renderTarget2.depthTexture);
-        composer.addPass(depthRenderPass);
 
 
         animate();
@@ -138,7 +146,12 @@
 
             const plane = new THREE.Mesh(geom, mat);
 
-            root.add(plane);
+            //root.add(plane);
+            if (op < 1.0) {
+                root_tp.add(plane);
+            } else {
+                root_op.add(plane);
+            }
 
             return plane;
         }

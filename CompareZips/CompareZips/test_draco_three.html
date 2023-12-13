@@ -49,7 +49,7 @@
         var renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(600, 600);
-        renderer.setClearColor(0x000000, 1);
+        renderer.setClearColor(0x444444, 1);
 
         document.getElementById("three_render").appendChild(renderer.domElement);
 
@@ -67,7 +67,7 @@
         //const cameraLight = new THREE.PointLight(0xffcccc, 1);
         //scene.add(cameraLight);
 
-        const directionalLight = new THREE.DirectionalLight(0x0000ff, 1);
+        const directionalLight = new THREE.DirectionalLight(0xeeeeee, 1);
         directionalLight.position.set(10, 10, 10);
         directionalLight.target.position.set(10, 0, 10);
         scene.add(directionalLight);
@@ -107,7 +107,7 @@
             let as = Math.max(sz.x, sz.y);
             let dist = Math.sqrt(3.0) / 2.0 * as + sz.z;
 
-            //console.log("camera dist fit = " + dist);
+            console.log("camera dist fit = " + dist);
 
             let ctr = new THREE.Vector3();
             bbox.getCenter(ctr);
@@ -357,8 +357,8 @@
                     let drcUrl = URL.createObjectURL(blob);
 
                     loader.load(
-                        //'./data/bunny.drc',
-                        //'../../data/307.drc',
+                        //'./data/dae/5419.drc',
+                        //'./data/dae/5420.drc',
                         drcUrl,
                         function (geom) {
 
@@ -408,6 +408,49 @@
         });
 
 
+
+        function startBenchmarkDrcOnly() {
+
+            const loader = new DRACOLoader();
+
+            loader.setDecoderPath('./node_modules/three/examples/js/libs/draco/');
+            loader.preload();
+
+            let res2 = fetch("./data/dae/5419.drc").then(res => {
+                return res.arrayBuffer();
+            }).then(ab => {
+                let buf = new Uint8Array(ab);
+
+                let blob = new Blob([buf]);
+                let drcUrl = URL.createObjectURL(blob);
+
+                loader.load(
+                    drcUrl,
+                    function (geom) {
+
+                        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                        mat.side = THREE.FrontSide;
+                        let mesh = new THREE.Mesh(geom, mat);
+
+                        //geom.computeVertexNormals();
+                        root.add(mesh);
+                        setCameraFit(root);
+
+                        //console.log("resolve drc " + idx);
+                    },
+                    function (xhr) {
+                        //console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                    },
+                    function (err) {
+                        console.log('DracoLoader error' + err);
+                    }
+                );
+            });
+
+        }
+
+
+
         const raycaster = new THREE.Raycaster();
 
         renderer.domElement.addEventListener('pointerup', (event) => {
@@ -430,9 +473,9 @@
 
         });
 
-        startBenchmarkDrc();
+        startBenchmarkDrcOnly();
 
-        root.visible = false;
+        root.visible = true;
 
     </script>
 

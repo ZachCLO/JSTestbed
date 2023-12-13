@@ -121,6 +121,8 @@
 
         import * as THREE from 'three';
         import { OrbitControls } from './node_modules/three/examples/jsm/controls/OrbitControls.js';
+        import { ArcballControls } from './node_modules/three/examples/jsm/controls/ArcballControls.js';
+        import { TrackballControls } from './node_modules/three/examples/jsm/controls/TrackballControls.js';
         import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
         import { GUI } from './node_modules/three/examples/jsm/libs/lil-gui.module.min.js';
 
@@ -218,8 +220,12 @@
         camera.add(cameraLight);
         scene.add(cameraLight.target);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0, 0, 0);
+        const controls = new TrackballControls(camera, renderer.domElement);
+        controls.rotateSpeed = 1.0;
+        controls.zoomSpeed = 1.2;
+        controls.panSpeed = 0.8;
+        controls.keys = ['KeyA', 'KeyS', 'KeyD'];
+        //controls.target.set(0, 0, 0);
         controls.update();
 
         /*

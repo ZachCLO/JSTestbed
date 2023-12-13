@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+<body>
+
+    <div>JSON view</div>
+    <hr />
+    <hr />
+    <button id="btn_load">Load JSON</button>
+    <input id="load_file_json" type="file" value="" accept=".json" hidden />
+
+    <script type="module">
+        const load_file = document.getElementById("load_file_json");
+        load_file.onchange = function (event) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                let json = JSON.parse(reader.result);
+                console.log(json);
+            };
+
+            reader.readAsText(event.target.files[0]);
+            event.target.value = "";
+        }
+
+        document.getElementById("btn_load").addEventListener("click", (event) => {
+            load_file.click();
+        });
+    </script>
+
+
+</body>
+</html>

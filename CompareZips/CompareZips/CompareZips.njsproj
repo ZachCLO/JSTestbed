@@ -77,6 +77,7 @@
       <SubType>Code</SubType>
     </Content>
     <Content Include="shader_light.html" />
+    <Content Include="shader_plane.html" />
     <Content Include="shader_three.html">
       <SubType>Code</SubType>
     </Content>
