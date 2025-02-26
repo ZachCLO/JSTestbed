@@ -37,6 +37,7 @@
     <Content Include="img_desaturate.html" />
     <Content Include="package.json" />
     <Content Include="README.md" />
+    <Content Include="scquadtest.html" />
   </ItemGroup>
   <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsToolsV2.targets" />
   <ProjectExtensions>

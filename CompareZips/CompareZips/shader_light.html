@@ -11,14 +11,17 @@
 
     <script id="vertexShader" type="x-shader/x-vertex">
 
+        attribute vec3 bcc;
         varying vec2 vUV;
         varying vec4 vColor;
         varying vec3 fragPos;
         varying vec3 vNormal;
+        varying vec3 vBcc;
 
         void main()	{
             vColor = vec4(1, 1, 1, 1);
             vUV = uv;
+            vBcc = bcc;
 
             vec4 p = modelViewMatrix * vec4(position, 1.0);
             gl_Position = projectionMatrix * p;
@@ -49,6 +52,7 @@
         varying vec4 vColor;
         varying vec3 fragPos;
         varying vec3 vNormal;
+        varying vec3 vBcc;
 
         uniform Light lightData[MAX_LIGHTS];
         uniform sampler2D sMainTex;
@@ -101,7 +105,19 @@
             }
 
             vec3 lightEff = (ambient + diffuse + specular);
-            gl_FragColor = vColor * vec4(lightEff.xyz, 1.0) * texture2D( sMainTex, vUV );
+
+            //float x = gl_BaryCoordNV.x;
+
+            vec4 finalColor = vColor * vec4(lightEff.xyz, 1.0) * texture2D( sMainTex, vUV );
+            vec3 afwidth = fwidth( vBcc.xyz );
+            float thickness = 2.0;
+            vec3 edge3 = smoothstep( ( thickness - 1.0 ) * afwidth, thickness * afwidth, vBcc.xyz );
+            float edge = 1.0 - min( min( edge3.x, edge3.y ), edge3.z );
+            if (edge < 1.0) {
+                finalColor.rgb = vec3(1, 1, 1);
+            } 
+
+            gl_FragColor = finalColor;
         }
 
     </script>
@@ -220,13 +236,17 @@
         camera.add(cameraLight);
         scene.add(cameraLight.target);
 
-        const controls = new TrackballControls(camera, renderer.domElement);
-        controls.rotateSpeed = 1.0;
-        controls.zoomSpeed = 1.2;
-        controls.panSpeed = 0.8;
-        controls.keys = ['KeyA', 'KeyS', 'KeyD'];
-        //controls.target.set(0, 0, 0);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
         controls.update();
+
+        //const controls = new TrackballControls(camera, renderer.domElement);
+        //controls.rotateSpeed = 1.0;
+        //controls.zoomSpeed = 1.2;
+        //controls.panSpeed = 0.8;
+        //controls.keys = ['KeyA', 'KeyS', 'KeyD'];
+        //controls.target.set(0, 0, 0);
+        //controls.update();
 
         /*
         const bgTex = new THREE.TextureLoader().load('../../data/sphere_plaza.jpg');
@@ -382,47 +402,96 @@
         const gloader = new GLTFLoader().setPath("../../data/gltf/render/");
         gloader.load("render.gltf", function (gltf) {
 
-            root.add(gltf.scene);
+            //root.add(gltf.scene);
 
-            let grp = null;
             for (let obj of gltf.scene.children[0].children) {
                 if (obj.isGroup) {
-                    grp = obj;
-                    break;
+                    let grp = obj;
+
+                    let idx = 0;
+                    for (let m of grp.children) {
+                        m._index = idx;
+                        idx++;
+                        meshes.push(m);
+                        mats.push(m.material);
+
+                        //if (!m.material.map) {
+                        //    console.log("material base map null " + idx);
+                        //} else {
+                        //    console.log("material base map : " + m.material.map.source.uuid);
+                        //}
+
+
+                        const geom = m.geometry.toNonIndexed();
+                        const arrBcc = new Float32Array(geom.attributes.position.count * 3);
+                        geom.setAttribute("bcc", new THREE.BufferAttribute(arrBcc, 3));
+                        for (let i = 0; i < geom.attributes.position.count; i++) {
+                            arrBcc[3 * i + 0] = (i % 3 === 0) ? 1.0 : 0.0;
+                            arrBcc[3 * i + 1] = (i % 3 === 1) ? 1.0 : 0.0;
+                            arrBcc[3 * i + 2] = (i % 3 === 2) ? 1.0 : 0.0;
+                        }
+                        m.geometry = geom;
+                        
+
+                        /*
+                        const numIndices = geom.index.array.length;
+                        const arrPos = new Float32Array(numIndices * 3);
+                        const arrNorm = new Float32Array(numIndices * 3);
+                        const arrBcc = new Float32Array(numIndices * 3);
+                        const arrUv = new Float32Array(numIndices * 2);
+                        geom.setAttribute("bcc", new THREE.BufferAttribute(arrBcc, 3));
+
+                        for (let i = 0; i < numIndices; i++) {
+                            const vidx = geom.index.array[i];
+
+                            arrPos[3 * i + 0] = geom.attributes.position.array[3 * vidx + 0];
+                            arrPos[3 * i + 1] = geom.attributes.position.array[3 * vidx + 1];
+                            arrPos[3 * i + 2] = geom.attributes.position.array[3 * vidx + 2];
+
+                            arrNorm[3 * i + 0] = geom.attributes.normal.array[3 * vidx + 0];
+                            arrNorm[3 * i + 1] = geom.attributes.normal.array[3 * vidx + 1];
+                            arrNorm[3 * i + 2] = geom.attributes.normal.array[3 * vidx + 2];
+
+                            arrUv[2 * i + 0] = geom.attributes.uv.array[2 * vidx + 0];
+                            arrUv[2 * i + 1] = geom.attributes.uv.array[2 * vidx + 1];
+
+                            arrBcc[3 * i + 0] = (i % 3 === 0) ? 1.0 : 0.0;
+                            arrBcc[3 * i + 1] = (i % 3 === 1) ? 1.0 : 0.0;
+                            arrBcc[3 * i + 2] = (i % 3 === 2) ? 1.0 : 0.0;
+                        }
+
+                        //for (let i = 0; i < numIndices; i++) {
+                        //    geom.index.array[i] = i;
+                        //}
+
+                        geom.setAttribute("position", new THREE.BufferAttribute(arrPos, 3));
+                        geom.setAttribute("normal", new THREE.BufferAttribute(arrNorm, 3));
+                        geom.setAttribute("uv", new THREE.BufferAttribute(arrUv, 2));
+                        geom.setIndex(null);
+                        geom.computeBoundingBox();
+                        geom.computeBoundingSphere();
+                        */
+
+
+
+
+                        let m_uniform = THREE.UniformsUtils.clone(lightingShaderMat.uniforms);
+                        m_uniform['sMainTex'].value = m.material.map;
+                        m.material = lightingShaderMat.clone();
+                        m.material.uniforms = m_uniform;
+
+                        /*
+                        let wg = new WireframeGeometry2(m.geometry);
+                        wmat.linewidth = 2;
+                        let wm = new Wireframe(wg, wmat);
+                        //wm.computeLineDistances();
+                        scene.add(wm);
+                        m.visible = false;
+                        */
+                    }
+
+                    root.add(grp);
                 }
-            }
-
-            if (grp) {
-
-                let idx = 0;
-                for (let m of grp.children) {
-                    m._index = idx;
-                    idx++;
-                    meshes.push(m);
-                    mats.push(m.material);
-
-                    //if (!m.material.map) {
-                    //    console.log("material base map null " + idx);
-                    //} else {
-                    //    console.log("material base map : " + m.material.map.source.uuid);
-                    //}
-
-                    let m_uniform = THREE.UniformsUtils.clone(lightingShaderMat.uniforms);
-                    m_uniform['sMainTex'].value = m.material.map;
-                    m.material = lightingShaderMat.clone();
-                    m.material.uniforms = m_uniform;
-
-                    /*
-                    let wg = new WireframeGeometry2(m.geometry);
-                    wmat.linewidth = 2;
-                    let wm = new Wireframe(wg, wmat);
-                    //wm.computeLineDistances();
-                    scene.add(wm);
-                    m.visible = false;
-                    */
-                }
-
-                root.add(grp);
             }
 
             setCameraFit(root);

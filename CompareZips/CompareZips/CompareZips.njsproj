@@ -50,6 +50,8 @@
     <Content Include="gltf_loader.html">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="imageformats.html" />
+    <Content Include="imageresize.html" />
     <Content Include="KtoRGB.html">
       <SubType>Code</SubType>
     </Content>
@@ -87,6 +89,7 @@
     <Content Include="test_draco.html">
       <SubType>Code</SubType>
     </Content>
+    <Content Include="test_draco_avt.html" />
     <Content Include="test_draco_three.html" />
     <Content Include="test_three.html">
       <SubType>Code</SubType>

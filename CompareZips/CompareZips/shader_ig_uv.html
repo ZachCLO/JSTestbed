@@ -12,12 +12,15 @@
 
     <script id="vertexShader" type="x-shader/x-vertex">
 
+        attribute vec3 bcc;
         varying vec2 vUV;
         varying vec2 vUV2;
         varying vec2 vUV3;
+        varying vec3 vBcc;
         uniform mat3 grp_trf;
 
         void main()	{
+            vBcc = bcc;
             vUV = uv;
             vUV.x = uv.x * 0.0022;//mod(uv.x, 1.0);
             vUV.y = uv.y * 0.0033;//mod(uv.y, 1.0);
@@ -33,6 +36,7 @@
         varying vec2 vUV;
         varying vec2 vUV2;
         varying vec2 vUV3;
+        varying vec3 vBcc;
         uniform float time;
         uniform sampler2D sMainTex;
         uniform sampler2D sGraphicTex;
@@ -41,6 +45,7 @@
 
         void main()	{
 
+            vec4 finalColor = vec4(0, 0, 0, 0);
             if (grp_enable) {
                 int edg = 0;
                 if (grp_selected) {
@@ -51,20 +56,29 @@
                 }
 
                 if (edg > 0) {
-                    gl_FragColor = vec4(1, 0, 0, 1);
+                    finalColor = vec4(1, 0, 0, 1);
                 } else {
                     float ga = texture2D( sGraphicTex, vUV2 ).a;
                     float gb = (grp_selected && (vUV2.x > 0.0 && vUV2.x < 1.0 && vUV2.y > 0.0 && vUV2.y < 1.0)) ? 0.7 : 1.0;
-                    gl_FragColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
+                    finalColor = (1.0 - ga) * (gb * texture2D( sMainTex, vUV ) + (1.0 - gb) * vec4(1, 0, 0, 1)) + ga * texture2D( sGraphicTex, vUV2);
                 }
             }
             else {
-                //gl_FragColor = texture2D( sMainTex, vUV );
+                //finalColor = texture2D( sMainTex, vUV );
                 //if (vUV3.y < -2000.0)
-                //    gl_FragColor = vec4(1, 0, 0, 1);
+                //    finalColor = vec4(1, 0, 0, 1);
                 //else
-                    gl_FragColor = texture2D( sMainTex, vUV );
+                    finalColor = texture2D( sMainTex, vUV );
             }
+
+            vec3 afwidth = fwidth( vBcc.xyz );
+            float thickness = 1.0;
+            vec3 edge3 = smoothstep( ( thickness - 1.0 ) * afwidth, thickness * afwidth, vBcc.xyz );
+            float edge = 1.0 - min( min( edge3.x, edge3.y ), edge3.z );
+
+            finalColor.a = edge;
+
+            gl_FragColor = finalColor;
         }
 
     </script>
@@ -363,11 +377,23 @@
                     const uvpGeom = meshes[i].geometry.clone();
                     const arrPos = uvpGeom.attributes.position.array;
                     const arrUv = uvpGeom.attributes.uv.array;
+                    const arrBcc = new Float32Array(uvpGeom.attributes.position.count * 3);
+                    uvpGeom.setAttribute("bcc", new THREE.BufferAttribute(arrBcc, 3));
 
                     for (let i = 0; i < uvpGeom.attributes.position.count; i++) {
                         arrPos[3 * i + 0] = arrUv[2 * i + 0];
                         arrPos[3 * i + 1] = arrUv[2 * i + 1];
                         arrPos[3 * i + 2] = 0;
+
+                        arrBcc[9 * i + 0] = 1.0;
+                        arrBcc[9 * i + 1] = 0.0;
+                        arrBcc[9 * i + 2] = 0.0;
+                        arrBcc[9 * i + 3] = 0.0;
+                        arrBcc[9 * i + 4] = 1.0;
+                        arrBcc[9 * i + 5] = 0.0;
+                        arrBcc[9 * i + 6] = 0.0;
+                        arrBcc[9 * i + 7] = 0.0;
+                        arrBcc[9 * i + 8] = 1.0;
                     }
 
                     uvpGeom.computeBoundingBox();
